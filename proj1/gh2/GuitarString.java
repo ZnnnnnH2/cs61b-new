@@ -17,7 +17,7 @@ public class GuitarString {
     private int capacity;
 
     /* Create a guitar string of the given frequency.  */
-    GuitarString(double frequency) {
+    public GuitarString(double frequency) {
         capacity = (int) Math.round((double) SR / frequency);
         buffer = new deque.ArrayDeque<>();
         for (int i = 0; i < capacity; i++) {
