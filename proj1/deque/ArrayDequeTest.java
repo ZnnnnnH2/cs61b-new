@@ -5,6 +5,7 @@ import org.junit.Test;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class ArrayDequeTest {
     @Test
@@ -15,6 +16,7 @@ public class ArrayDequeTest {
         ad.addLast("back");
         ad.printDeque();
     }
+
     @Test
     public void multipleAddRemoveTest() {
         ArrayDeque<String> ad = new ArrayDeque<>();
@@ -72,5 +74,19 @@ public class ArrayDequeTest {
 
             assertEquals(linkedListDeque.size(), arrayDeque.size());
         }
+    }
+
+    @Test
+    public void testEqual() {
+        ArrayDeque<Integer> ad1 = new ArrayDeque<>();
+        LinkedListDeque<Integer> ad2 = new LinkedListDeque<>();
+        ad1.addFirst(1);
+        ad1.addFirst(2);
+        ad1.addFirst(3);
+        ad2.addFirst(1);
+        ad2.addFirst(2);
+        ad2.addFirst(3);
+        assertTrue(ad1.equals(ad2));
+        assertTrue(ad2.equals(ad1));
     }
 }

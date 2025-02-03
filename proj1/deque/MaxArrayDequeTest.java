@@ -1,4 +1,5 @@
 package deque;
+
 import org.junit.Test;
 
 import java.util.Comparator;
@@ -12,12 +13,14 @@ public class MaxArrayDequeTest {
             return o1 - o2;
         }
     }
+
     private static class StringComparator implements Comparator<String> {
         @Override
         public int compare(String o1, String o2) {
             return o1.compareTo(o2);
         }
     }
+
     @Test
     public void maxTest() {
         MaxArrayDeque<Integer> mad = new MaxArrayDeque<>(new IntegerComparator());
@@ -26,6 +29,7 @@ public class MaxArrayDequeTest {
         mad.addLast(2);
         assertEquals((Integer) 3, mad.max());
     }
+
     @Test
     public void maxTest2() {
         MaxArrayDeque<String> mad = new MaxArrayDeque<>(new StringComparator());

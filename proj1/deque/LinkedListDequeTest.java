@@ -7,7 +7,9 @@ import java.util.Iterator;
 import static org.junit.Assert.*;
 
 
-/** Performs some basic linked list tests. */
+/**
+ * Performs some basic linked list tests.
+ */
 public class LinkedListDequeTest {
 
     @Test
@@ -47,16 +49,16 @@ public class LinkedListDequeTest {
         System.out.println("Make sure to uncomment the lines below (and delete this print statement).");
 
         LinkedListDeque<Integer> lld1 = new LinkedListDeque<Integer>();
-		// should be empty
-		assertTrue("lld1 should be empty upon initialization", lld1.isEmpty());
+        // should be empty
+        assertTrue("lld1 should be empty upon initialization", lld1.isEmpty());
 
-		lld1.addFirst(10);
-		// should not be empty
-		assertFalse("lld1 should contain 1 item", lld1.isEmpty());
+        lld1.addFirst(10);
+        // should not be empty
+        assertFalse("lld1 should contain 1 item", lld1.isEmpty());
 
-		lld1.removeFirst();
-		// should be empty
-		assertTrue("lld1 should be empty after removal", lld1.isEmpty());
+        lld1.removeFirst();
+        // should be empty
+        assertTrue("lld1 should be empty after removal", lld1.isEmpty());
 
     }
 
@@ -88,8 +90,8 @@ public class LinkedListDequeTest {
     public void multipleParamTest() {
 
 
-        LinkedListDeque<String>  lld1 = new LinkedListDeque<String>();
-        LinkedListDeque<Double>  lld2 = new LinkedListDeque<Double>();
+        LinkedListDeque<String> lld1 = new LinkedListDeque<String>();
+        LinkedListDeque<Double> lld2 = new LinkedListDeque<Double>();
         LinkedListDeque<Boolean> lld3 = new LinkedListDeque<Boolean>();
 
         lld1.addFirst("string");
@@ -139,19 +141,20 @@ public class LinkedListDequeTest {
     }
 
     @Test
-    public void IteratorTest(){
+    public void IteratorTest() {
         LinkedListDeque<Integer> lld1 = new LinkedListDeque<Integer>();
         for (int i = 0; i < 1000000; i++) {
             lld1.addLast(i);
         }
         int mun = 0;
-        for(int i : lld1){
+        for (int i : lld1) {
             assertEquals(mun, i);
             mun++;
         }
     }
+
     @Test
-    public void EqualsTest(){
+    public void EqualsTest() {
         LinkedListDeque<Integer> lld1 = new LinkedListDeque<>();
         LinkedListDeque<Integer> lld2 = new LinkedListDeque<>();
         LinkedListDeque<Integer> lld3 = new LinkedListDeque<>();
@@ -159,12 +162,13 @@ public class LinkedListDequeTest {
             lld1.addLast(i);
             lld2.addLast(i);
         }
-        for(int i=1000000;i>0;i--){
+        for (int i = 1000000; i > 0; i--) {
             lld3.addLast(i);
         }
         assertEquals(true, lld1.equals(lld2));
         assertEquals(false, lld1.equals(lld3));
     }
+
     @Test
     public void iteratorEmptyTest() {
         LinkedListDeque<Integer> lld = new LinkedListDeque<>();
