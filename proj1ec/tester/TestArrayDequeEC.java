@@ -1,6 +1,5 @@
 package tester;
 
-import afu.org.checkerframework.checker.igj.qual.I;
 import org.junit.Test;
 import static org.junit.Assert.*;
 import student.StudentArrayDeque;
