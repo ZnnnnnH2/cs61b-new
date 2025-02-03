@@ -58,6 +58,9 @@ public class ArrayDeque<T> implements Deque<T> {
         System.out.println();
     }
     public T removeFirst(){
+        if(size == 0){
+            return null;
+        }
         if(size<items.length/4 && items.length>8){
             resize(items.length/4);
         }
@@ -68,6 +71,9 @@ public class ArrayDeque<T> implements Deque<T> {
         return item;
     }
     public T removeLast(){
+        if(size == 0){
+            return null;
+        }
         if(size<items.length/4 && items.length>8){
             resize(items.length/4);
         }
