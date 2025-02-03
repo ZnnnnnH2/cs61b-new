@@ -1,6 +1,9 @@
 package deque;
 
 import org.junit.Test;
+
+import java.util.Iterator;
+
 import static org.junit.Assert.*;
 
 
@@ -119,7 +122,7 @@ public class LinkedListDequeTest {
     /* Add large number of elements to deque; check if order is correct. */
     public void bigLLDequeTest() {
 
-        System.out.println("Make sure to uncomment the lines below (and delete this print statement).");
+        //System.out.println("Make sure to uncomment the lines below (and delete this print statement).");
 
         LinkedListDeque<Integer> lld1 = new LinkedListDeque<Integer>();
         for (int i = 0; i < 1000000; i++) {
@@ -133,7 +136,39 @@ public class LinkedListDequeTest {
         for (double i = 999999; i > 500000; i--) {
             assertEquals("Should have the same value", i, (double) lld1.removeLast(), 0.0);
         }
+    }
 
-
+    @Test
+    public void IteratorTest(){
+        LinkedListDeque<Integer> lld1 = new LinkedListDeque<Integer>();
+        for (int i = 0; i < 1000000; i++) {
+            lld1.addLast(i);
+        }
+        int mun = 0;
+        for(int i : lld1){
+            assertEquals(mun, i);
+            mun++;
+        }
+    }
+    @Test
+    public void EqualsTest(){
+        LinkedListDeque<Integer> lld1 = new LinkedListDeque<>();
+        LinkedListDeque<Integer> lld2 = new LinkedListDeque<>();
+        LinkedListDeque<Integer> lld3 = new LinkedListDeque<>();
+        for (int i = 0; i < 1000000; i++) {
+            lld1.addLast(i);
+            lld2.addLast(i);
+        }
+        for(int i=1000000;i>0;i--){
+            lld3.addLast(i);
+        }
+        assertEquals(true, lld1.equals(lld2));
+        assertEquals(false, lld1.equals(lld3));
+    }
+    @Test
+    public void iteratorEmptyTest() {
+        LinkedListDeque<Integer> lld = new LinkedListDeque<>();
+        Iterator<Integer> iterator = lld.iterator();
+        assertFalse(iterator.hasNext());
     }
 }
