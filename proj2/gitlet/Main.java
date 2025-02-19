@@ -34,7 +34,7 @@ public class Main {
                 break;
             case "commit":
                 validateInitalizedDirectory();
-                if (args.length == 1) {
+                if (args.length == 1 || args[1].equals("")) {
                     System.out.println("Please enter a commit message.");
                     System.exit(0);
                 }

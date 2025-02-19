@@ -268,7 +268,7 @@ public class Repository {
             }
         }
         System.out.println();
-        System.out.println("=== Removed Files");
+        System.out.println("=== Removed Files ===");
         if (REMOVAL.exists()) {
             Set<String> removal = Utils.readObject(REMOVAL, TreeSet.class);
             for (String fileName : removal) {
