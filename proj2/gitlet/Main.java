@@ -72,7 +72,7 @@ public class Main {
                     validateNumArgs(args,3);
                     repo.checkoutWithFilename(args[2]);
                 }
-                else if(args[2].equals("--")){
+                else if(args.length==4&&args[2].equals("--")){
                     validateNumArgs(args,4);
                     repo.checkoutWithIdAndFilename(args[1],args[3]);
                 }
@@ -84,6 +84,7 @@ public class Main {
             case "branch":
                 validateInitalizedDirectory();
                 validateNumArgs(args,2);
+                repo.branch(args[1]);
                 break;
             case "rm-branch":
                 validateInitalizedDirectory();

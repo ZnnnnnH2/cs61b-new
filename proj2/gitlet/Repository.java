@@ -53,7 +53,7 @@ public class Repository {
         } else {
             HEAD = null;
             branch = new TreeMap<>();
-            whereHeadIs = main;
+            whereHeadIs = null;
         }
     }
 
@@ -127,6 +127,8 @@ public class Repository {
         Commit initial = new Commit();
         initial.updateCommit("initial commit", null, null, new Date(0),whereHeadIs);
         initial.saveCommit();
+        whereHeadIs = main;
+        Utils.writeContents(WHEREHEADIS, whereHeadIs);
         forwordHEAD(initial);
     }
 
@@ -167,7 +169,7 @@ public class Repository {
             }
             ADDITION.delete();
         } else if (REMOVAL.exists()) {
-            Set<String> removal = Utils.readObject(REMOVAL, HashSet.class);
+            Set<String> removal = Utils.readObject(REMOVAL, TreeSet.class);
             for (String fileName : removal) {
                 newCommit.remove(fileName);
             }
@@ -201,12 +203,12 @@ public class Repository {
             sign = true;
             Set<String> removal;
             if (REMOVAL.exists()) {
-                removal = Utils.readObject(REMOVAL, HashSet.class);
+                removal = Utils.readObject(REMOVAL, TreeSet.class);
             } else {
-                removal = new HashSet<>();
+                removal = new TreeSet<>();
             }
             removal.add(fileName);
-            Utils.writeContents(REMOVAL, removal);
+            Utils.writeObject(REMOVAL, (Serializable) removal);
             if (currentFile.exists()) {
                 currentFile.delete();
             }
@@ -249,9 +251,9 @@ public class Repository {
 
     public void status() {
         System.out.println("=== Branches ===");
-        Set<String> branchName = Utils.readObject(BRANCH, TreeSet.class);
-        for (String name : branchName) {
-            if (Objects.equals(name, whereHeadIs)) {
+        TreeMap<String, String> branchName = Utils.readObject(BRANCH, TreeMap.class);
+        for (String name : branchName.keySet()) {
+            if (name.equals(whereHeadIs)) {
                 System.out.println("*" + name);
             } else {
                 System.out.println(name);
@@ -268,7 +270,7 @@ public class Repository {
         System.out.println();
         System.out.println("=== Removed Files");
         if (REMOVAL.exists()) {
-            Set<String> removal = Utils.readObject(REMOVAL, HashSet.class);
+            Set<String> removal = Utils.readObject(REMOVAL, TreeSet.class);
             for (String fileName : removal) {
                 System.out.println(fileName);
             }
@@ -330,7 +332,7 @@ public class Repository {
             System.out.println("No need to checkout the current branch.");
             System.exit(0);
         }
-        switchToACommit(branch.get(branchName));
+        switchToACommit(branch.get(branchName),branchName);
         //TODO:There is an untracked file in the way; delete it, or add and commit it first.
     }
 
@@ -362,10 +364,10 @@ public class Repository {
             System.out.println("No commit with that id exists.");
             System.exit(0);
         }
-
+        switchToACommit(commitId,null);
     }
 
-    private void switchToACommit(String commitId){
+    private void switchToACommit(String commitId,String whereCurrentHeadIs) {
         if(ADDITION.exists()){
             ADDITION.delete();
         }
@@ -385,7 +387,12 @@ public class Repository {
         }
         HEAD = commitId;
         Utils.writeContents(HEAD_FILE, HEAD);
-        whereHeadIs = headCommitOfGivenBranch.getBranch();
+        if(whereCurrentHeadIs==null){
+            whereHeadIs = headCommitOfGivenBranch.getBranch();
+        }
+        else {
+            whereHeadIs = whereCurrentHeadIs;
+        }
         Utils.writeContents(WHEREHEADIS, whereHeadIs);
         branch.put(whereHeadIs, HEAD);
         Utils.writeObject(BRANCH, branch);
