@@ -34,26 +34,26 @@ public class Repository {
     public static final File BLOBS_DIR = join(GITLET_DIR, "blobs");
     public static final File COMMITS_DIR = join(GITLET_DIR, "commits");
     public static final File HEAD_FILE = join(GITLET_DIR, "HEAD");
-    public static final File MASTER_FILE = join(GITLET_DIR, "master");
-    public static final File LOG = join(GITLET_DIR, "log");
+    public static final File GLOBALLOG = join(GITLET_DIR, "log");
     public static final File BRANCH = join(GITLET_DIR, "branch");
     public static final File WHEREHEADIS = join(GITLET_DIR, "whereheadis");
-    public static final File GETFULLID = join(GITLET_DIR,"getfullid");
-    public static final File FIND = join(GITLET_DIR,"find");
-
+    public static final File GETFULLID = join(GITLET_DIR, "getfullid");
+    public static final File FIND = join(GITLET_DIR, "find");
+    private static final String main = "master";
     //    public static final File FIND = join(GITLET_DIR,"find");
-    private String HEAD, master;
+    private String HEAD;
     private String whereHeadIs;
+    private TreeMap<String, String> branch;
 
     public Repository() {
         if (isInitialized()) {
             HEAD = Utils.readContentsAsString(HEAD_FILE);
-            master = Utils.readContentsAsString(MASTER_FILE);
+            branch = Utils.readObject(BRANCH, TreeMap.class);
             whereHeadIs = Utils.readContentsAsString(WHEREHEADIS);
         } else {
             HEAD = null;
-            master = null;
-            whereHeadIs = null;
+            branch = new TreeMap<>();
+            whereHeadIs = main;
         }
     }
 
@@ -69,33 +69,65 @@ public class Repository {
         return Utils.join(path, sha1.substring(2));
     }
 
-    public void init() {
+    private static StringBuffer printSignalLog(Commit commit, String sha1) {
+        StringBuffer logMessage = new StringBuffer();
+        logMessage.append("===");
+        logMessage.append("\n");
+        logMessage.append("commit ").append(sha1);
+        logMessage.append("\n");
+        if (commit.getMather() != null) {
+            logMessage.append("Merge: " + commit.getFather().substring(0, 8) + " " + commit.getMather().substring(0, 8));
+            logMessage.append("\n");
+        }
+        String formatted = String.format(
+                Locale.US, // 指定英文格式
+                "%1$ta %1$tb %1$te %1$tT %1$tY %1$tz", // 格式化模板
+                commit.getTimestamp() // 要格式化的时间
+        );
+        logMessage.append("Date: " + formatted);
+        logMessage.append("\n");
+        logMessage.append(commit.getMessage());
+        logMessage.append("\n");
+        logMessage.append("\n");
+        return logMessage;
+    }
+
+    public static void addNewCommitToGlobalLog(Commit commit) {
+        StringBuffer logMssage;
+        if (GLOBALLOG.exists()) {
+            logMssage = Utils.readObject(GLOBALLOG, StringBuffer.class);
+        } else {
+            logMssage = new StringBuffer();
+        }
+        logMssage.append(printSignalLog(commit, sha1((Object) serialize(commit))));
+        Utils.writeObject(GLOBALLOG, logMssage);
+    }
+
+    private void forwordHEAD(Commit newcommit) {
+        String sha1 = sha1((Object) serialize(newcommit));
+        HEAD = sha1;
+        Utils.writeContents(HEAD_FILE, HEAD);
+        branch.put(whereHeadIs, HEAD);
+        Utils.writeObject(BRANCH, branch);
+    }
+
+    private void createDir() {
         GITLET_DIR.mkdir();
         STAGE_DIR.mkdir();
         BLOBS_DIR.mkdir();
         COMMITS_DIR.mkdir();
+    }
+
+    public void init() {
+        if (isInitialized()) {
+            System.out.println("A Gitlet version-control system already exists in the current directory.");
+            System.exit(0);
+        }
+        createDir();
         Commit initial = new Commit();
-        addNewCommitToGlobalLog(initial);
-        initial.updateCommit("initial commit", null, null, new Date(0));
+        initial.updateCommit("initial commit", null, null, new Date(0),whereHeadIs);
         initial.saveCommit();
-        HEAD = sha1((Object) serialize(initial));
-        master = HEAD;
-        saveHead();
-        saveMaster();
-        //TODO:branch things
-        Set<String> branchName = new TreeSet<>();
-        branchName.add("master");
-        Utils.writeObject(BRANCH, (Serializable) branchName);
-        whereHeadIs = "master";
-        Utils.writeContents(WHEREHEADIS, whereHeadIs);
-    }
-
-    private void saveHead() {
-        Utils.writeContents(HEAD_FILE, HEAD);
-    }
-
-    private void saveMaster() {
-        Utils.writeContents(MASTER_FILE, master);
+        forwordHEAD(initial);
     }
 
     public void add(String fileName) {
@@ -125,36 +157,36 @@ public class Repository {
     }
 
     public void commit(String message) {
-        // TODO: implement removal stage
         File parent = getPath(COMMITS_DIR, HEAD);
         Commit newCommit = Utils.readObject(parent, Commit.class);
-        newCommit.updateCommit(message, HEAD, null, new Date());
+        newCommit.updateCommit(message, HEAD, null, new Date(),whereHeadIs);
         if (ADDITION.exists()) {
             TreeMap<String, String> store = Utils.readObject(ADDITION, TreeMap.class);
             for (String fileName : store.keySet()) {
                 newCommit.put(fileName, store.get(fileName));
             }
             ADDITION.delete();
+        } else if (REMOVAL.exists()) {
+            Set<String> removal = Utils.readObject(REMOVAL, HashSet.class);
+            for (String fileName : removal) {
+                newCommit.remove(fileName);
+            }
+            REMOVAL.delete();
         } else {
             System.out.println("No changes added to the commit.");
             System.exit(0);
         }
         newCommit.saveCommit();
-        addNewCommitToGlobalLog(newCommit);
-        HEAD = sha1((Object) serialize(newCommit));
-        saveHead();
-        master = HEAD;
-        saveMaster();
+        forwordHEAD(newCommit);
     }
 
     public void rm(String fileName) {
         boolean sign = false;
         File currentFile = Utils.join(CWD, fileName);
-        String sha1 = sha1((Object) readContents(currentFile));
         if (ADDITION.exists()) {
             TreeMap<String, String> store = Utils.readObject(ADDITION, TreeMap.class);
             for (String key : store.keySet()) {
-                if (key.equals(fileName) && store.get(key).equals(sha1)) {
+                if (key.equals(fileName)) {
                     store.remove(key);
                     sign = true;
                 }
@@ -165,7 +197,7 @@ public class Repository {
         }
         File pathOfHeadCommit = getPath(COMMITS_DIR, HEAD);
         Commit headCommit = Utils.readObject(pathOfHeadCommit, Commit.class);
-        if (headCommit.isTracked(fileName) && headCommit.getBlobHash(fileName).equals(sha1)) {
+        if (headCommit.isTracked(fileName)) {
             sign = true;
             Set<String> removal;
             if (REMOVAL.exists()) {
@@ -195,54 +227,20 @@ public class Repository {
         }
     }
 
-    private StringBuffer printSignalLog(Commit commit, String sha1) {
-        StringBuffer logMessage = new StringBuffer();
-        logMessage.append("===");
-        logMessage.append("\n");
-        logMessage.append("commit ").append(sha1);
-        logMessage.append("\n");
-        if (commit.getMather() != null) {
-            logMessage.append("Merge: " + commit.getFather().substring(0, 8) + " " + commit.getMather().substring(0, 8));
-            logMessage.append("\n");
-        }
-        String formatted = String.format(
-                Locale.US, // 指定英文格式
-                "%1$ta %1$tb %1$te %1$tT %1$tY %1$tz", // 格式化模板
-                commit.getTimestamp() // 要格式化的时间
-        );
-        logMessage.append("Date: " + formatted);
-        logMessage.append("\n");
-        logMessage.append(commit.getMessage());
-        logMessage.append("\n");
-        logMessage.append("\n");
-        return logMessage;
-    }
-
     public void globalLog() {
-        if (!LOG.exists()) {
+        if (!GLOBALLOG.exists()) {
             System.exit(0);
         }
-        StringBuffer logmessage = Utils.readObject(LOG, StringBuffer.class);
-        System.out.print(logmessage);
-    }
-
-    private void addNewCommitToGlobalLog(Commit commit) {
-        StringBuffer logmessage;
-        if (LOG.exists()) {
-            logmessage = Utils.readObject(LOG, StringBuffer.class);
-        } else {
-            logmessage = new StringBuffer();
-        }
-        logmessage.append(printSignalLog(commit, sha1((Object) serialize(commit))));
-        Utils.writeObject(LOG, logmessage);
+        StringBuffer logMessage = Utils.readObject(GLOBALLOG, StringBuffer.class);
+        System.out.print(logMessage);
     }
 
     public void find(String message) {
-        TreeMap<String,String> find = Utils.readObject(FIND,TreeMap.class);
-        for(String key:find.keySet()){
-            if(key.equals(message)){
+        TreeMap<String, String> find = Utils.readObject(FIND, TreeMap.class);
+        for (String key : find.keySet()) {
+            if (key.equals(message)) {
                 System.out.println(find.get(key));
-                return ;
+                return;
             }
         }
         System.out.println("Found no commit with that message.");
@@ -289,9 +287,9 @@ public class Repository {
         if (id.length() == 40) {
             return id;
         }
-        Set<String> fullid = Utils.readObject(GETFULLID,TreeSet.class);
-        for(String key : fullid){
-            if(key.substring(0,len).equals(id)){
+        Set<String> fullid = Utils.readObject(GETFULLID, TreeSet.class);
+        for (String key : fullid) {
+            if (key.substring(0, len).equals(id)) {
                 return key;
             }
         }
@@ -304,7 +302,7 @@ public class Repository {
 
     public void checkoutWithIdAndFilename(String id, String filename) {
         id = getFullId(id);
-        if(id == null){
+        if (id == null) {
             System.out.println("No commit with that id exists.");
             System.exit(0);
         }
@@ -313,8 +311,7 @@ public class Repository {
             System.out.println("No commit with that id exists.");
             System.exit(0);
         }
-        File pathOfHeadCommit = getPath(COMMITS_DIR, id);
-        Commit currentCommit = Utils.readObject(pathOfHeadCommit, Commit.class);
+        Commit currentCommit = Commit.getCommitFromFile(id);
         String sha1 = currentCommit.getBlobHash(filename);
         if (sha1 == null) {
             System.out.println("File does not exist in that commit.");
@@ -324,7 +321,77 @@ public class Repository {
         Utils.writeContents(Utils.join(CWD, filename), (Object) Utils.readContents(blobFile));
     }
 
-    public void checkoutWithBranchName(String branckName) {
+    public void checkoutWithBranchName(String branchName) {
+        if (!branch.containsKey(branchName)) {
+            System.out.println("No such branch exists.");
+            System.exit(0);
+        }
+        if (branchName.equals(whereHeadIs)) {
+            System.out.println("No need to checkout the current branch.");
+            System.exit(0);
+        }
+        switchToACommit(branch.get(branchName));
+        //TODO:There is an untracked file in the way; delete it, or add and commit it first.
+    }
+
+    public void branch(String branchName){
+        if(branch.containsKey(branchName)){
+            System.out.println("A branch with that name already exists.");
+            System.exit(0);
+        }
+        branch.put(branchName,HEAD);
+        Utils.writeObject(BRANCH,branch);
+    }
+
+    public void rmBranch(String branchName){
+        if(!branch.containsKey(branchName)){
+            System.out.println("A branch with that name does not exist.");
+            System.exit(0);
+        }
+        if(branchName.equals(whereHeadIs)){
+            System.out.println("Cannot remove the current branch.");
+            System.exit(0);
+        }
+        branch.remove(branchName);
+        Utils.writeObject(BRANCH,branch);
+    }
+
+    public void reset(String commitId) {
+        commitId = getFullId(commitId);
+        if (commitId == null) {
+            System.out.println("No commit with that id exists.");
+            System.exit(0);
+        }
+
+    }
+
+    private void switchToACommit(String commitId){
+        if(ADDITION.exists()){
+            ADDITION.delete();
+        }
+        if(REMOVAL.exists()){
+            REMOVAL.delete();
+        }
+        commitId = getFullId(commitId);
+        Commit headCommitOfCurrentBranch = Commit.getCommitFromFile(HEAD);
+        for (String key : headCommitOfCurrentBranch.getTrackedBlobs().keySet()) {
+            File notTrackedInCheckedOutBranch = Utils.join(CWD, key);
+            notTrackedInCheckedOutBranch.delete();
+        }
+        Commit headCommitOfGivenBranch = Commit.getCommitFromFile(commitId);
+        for (String key : headCommitOfGivenBranch.getTrackedBlobs().keySet()) {
+            File blobFile = getPath(BLOBS_DIR, headCommitOfGivenBranch.getBlobHash(key));
+            Utils.writeContents(Utils.join(CWD, key), (Object) Utils.readContents(blobFile));
+        }
+        HEAD = commitId;
+        Utils.writeContents(HEAD_FILE, HEAD);
+        whereHeadIs = headCommitOfGivenBranch.getBranch();
+        Utils.writeContents(WHEREHEADIS, whereHeadIs);
+        branch.put(whereHeadIs, HEAD);
+        Utils.writeObject(BRANCH, branch);
+    }
+
+    public void merge(String branchName){
 
     }
 }

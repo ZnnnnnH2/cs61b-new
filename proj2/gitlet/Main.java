@@ -82,16 +82,23 @@ public class Main {
                 }
                 break;
             case "branch":
-
+                validateInitalizedDirectory();
+                validateNumArgs(args,2);
                 break;
             case "rm-branch":
-
+                validateInitalizedDirectory();
+                validateNumArgs(args,2);
+                repo.rmBranch(args[1]);
                 break;
             case "reset":
-
+                validateInitalizedDirectory();
+                validateNumArgs(args,2);
+                repo.reset(args[1]);
                 break;
             case "merge":
-
+                validateInitalizedDirectory();
+                validateNumArgs(args,2);
+                repo.merge(args[1]);
                 break;
             default:
                 System.out.println("No command with that name exists.");

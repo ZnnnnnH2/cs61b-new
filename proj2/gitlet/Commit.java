@@ -25,6 +25,7 @@ public class Commit implements Serializable {
     private String father;
     private String mather;
     private Date timestamp;
+    private String branch;
     private TreeMap<String, String> trackedBlobs = new TreeMap<>();
 
     public Commit() {
@@ -32,11 +33,12 @@ public class Commit implements Serializable {
         mather = null;
     }
 
-    public void updateCommit(String message, String father, String mather, Date timestamp) {
+    public void updateCommit(String message, String father, String mather, Date timestamp, String branch) {
         this.message = message;
         this.father = father;
         this.mather = mather;
         this.timestamp = timestamp;
+        this.branch = branch;
     }
 
     public String getMessage() {
@@ -55,12 +57,16 @@ public class Commit implements Serializable {
         return mather;
     }
 
-    public Commit getCommitFromFile(String parentHas1) {
-        File parentFile = Utils.join(Repository.COMMITS_DIR, parentHas1.substring(0, 2), parentHas1.substring(2));
+    public String getBranch() {
+        return branch;
+    }
+
+    public static Commit getCommitFromFile(String parentHas1) {
+        File parentFile = Repository.getPath(Repository.COMMITS_DIR, parentHas1);
         if (parentFile.exists()) {
             return Utils.readObject(parentFile, Commit.class);
         }
-        return null;
+        throw new IllegalArgumentException("No commit with that id exists.");
     }
 
     public void saveCommit() {
@@ -91,6 +97,7 @@ public class Commit implements Serializable {
             fullid.add(has1);
             Utils.writeObject(Repository.GETFULLID, (Serializable) fullid);
         }
+        Repository.addNewCommitToGlobalLog(this);
     }
 
     public boolean isTracked(String fileName) {
@@ -103,5 +110,13 @@ public class Commit implements Serializable {
 
     public void put(String fileName, String sha1) {
         trackedBlobs.put(fileName, sha1);
+    }
+
+    public TreeMap<String, String> getTrackedBlobs() {
+        return trackedBlobs;
+    }
+
+    public void remove(String fileName) {
+        trackedBlobs.remove(fileName);
     }
 }
