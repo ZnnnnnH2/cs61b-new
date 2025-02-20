@@ -125,7 +125,7 @@ public class Repository {
         }
         createDir();
         Commit initial = new Commit();
-        initial.updateCommit("initial commit", null, null, new Date(0),whereHeadIs);
+        initial.updateCommit("initial commit", null, null, new Date(0), whereHeadIs);
         initial.saveCommit();
         whereHeadIs = main;
         Utils.writeContents(WHEREHEADIS, whereHeadIs);
@@ -146,16 +146,16 @@ public class Repository {
         }
         String sha1 = sha1((Object) readContents(file));
         Commit parent = Utils.readObject(getPath(COMMITS_DIR, HEAD), Commit.class);
-        if (parent.isTracked(fileName) && parent.getBlobHash(fileName).equals(sha1)) {
-            if(store.containsKey(fileName)){
+        if (parent.isTracked(fileName, sha1) && parent.getBlobHash(fileName).equals(sha1)) {
+            if (store.containsKey(fileName)) {
                 store.remove(fileName);
                 Utils.writeObject(ADDITION, store);
             }
             return;
         }
-        if(REMOVAL.exists()) {
+        if (REMOVAL.exists()) {
             Set<String> removal = Utils.readObject(REMOVAL, TreeSet.class);
-            if(removal.contains(fileName)){
+            if (removal.contains(fileName)) {
                 removal.remove(fileName);
                 Utils.writeObject(REMOVAL, (Serializable) removal);
             }
@@ -172,7 +172,7 @@ public class Repository {
     public void commit(String message) {
         File parent = getPath(COMMITS_DIR, HEAD);
         Commit newCommit = Utils.readObject(parent, Commit.class);
-        newCommit.updateCommit(message, HEAD, null, new Date(),whereHeadIs);
+        newCommit.updateCommit(message, HEAD, null, new Date(), whereHeadIs);
         if (ADDITION.exists()) {
             TreeMap<String, String> store = Utils.readObject(ADDITION, TreeMap.class);
             for (String fileName : store.keySet()) {
@@ -210,9 +210,9 @@ public class Repository {
                 Utils.writeObject(ADDITION, store);
             }
         }
-        File pathOfHeadCommit = getPath(COMMITS_DIR, HEAD);
-        Commit headCommit = Utils.readObject(pathOfHeadCommit, Commit.class);
-        if (headCommit.isTracked(fileName)) {
+        Commit headCommit = Commit.getCommitFromFile(HEAD);
+        byte[] file = getFileFromCWD(fileName);
+        if (headCommit.isTracked(fileName, sha1((Object) file))) {
             sign = true;
             Set<String> removal;
             if (REMOVAL.exists()) {
@@ -230,6 +230,15 @@ public class Repository {
             System.out.println("No reason to remove the file.");
             System.exit(0);
         }
+    }
+
+    private byte[] getFileFromCWD(String fileName) {
+        File file = Utils.join(CWD, fileName);
+        if (!file.exists()) {
+            System.out.println("File does not exist.");
+            System.exit(0);
+        }
+        return Utils.readContents(file);
     }
 
     public void log() {
@@ -292,7 +301,7 @@ public class Repository {
         System.out.println("=== Modifications Not Staged For Commit ===");
         //TODO:EC
         System.out.println();
-        System.out.println("=== Untrached Files ===");
+        System.out.println("=== Untracked Files ===");
         //TODO:EC
         System.out.println();
     }
@@ -345,30 +354,29 @@ public class Repository {
             System.out.println("No need to checkout the current branch.");
             System.exit(0);
         }
-        switchToACommit(branch.get(branchName),branchName);
-        //TODO:There is an untracked file in the way; delete it, or add and commit it first.
+        switchToACommit(branch.get(branchName), branchName);
     }
 
-    public void branch(String branchName){
-        if(branch.containsKey(branchName)){
+    public void branch(String branchName) {
+        if (branch.containsKey(branchName)) {
             System.out.println("A branch with that name already exists.");
             System.exit(0);
         }
-        branch.put(branchName,HEAD);
-        Utils.writeObject(BRANCH,branch);
+        branch.put(branchName, HEAD);
+        Utils.writeObject(BRANCH, branch);
     }
 
-    public void rmBranch(String branchName){
-        if(!branch.containsKey(branchName)){
+    public void rmBranch(String branchName) {
+        if (!branch.containsKey(branchName)) {
             System.out.println("A branch with that name does not exist.");
             System.exit(0);
         }
-        if(branchName.equals(whereHeadIs)){
+        if (branchName.equals(whereHeadIs)) {
             System.out.println("Cannot remove the current branch.");
             System.exit(0);
         }
         branch.remove(branchName);
-        Utils.writeObject(BRANCH,branch);
+        Utils.writeObject(BRANCH, branch);
     }
 
     public void reset(String commitId) {
@@ -377,17 +385,37 @@ public class Repository {
             System.out.println("No commit with that id exists.");
             System.exit(0);
         }
-        switchToACommit(commitId,null);
+        switchToACommit(commitId, null);
     }
 
-    private void switchToACommit(String commitId,String whereCurrentHeadIs) {
-        if(ADDITION.exists()){
+    private void checkAnUntrackedFileInTheWay(String commitId, String whereCurrentHeadIs) {
+        Commit headCommitOfCurrentBranch = Commit.getCommitFromFile(HEAD);
+        for (String key : headCommitOfCurrentBranch.getTrackedBlobs().keySet()) {
+            File notTrackedInCheckedOutBranch = Utils.join(CWD, key);
+            if (notTrackedInCheckedOutBranch.exists() && !headCommitOfCurrentBranch.getBlobHash(key).equals(sha1((Object) Utils.readContents(notTrackedInCheckedOutBranch)))) {
+                System.out.println("There is an untracked file in the way; delete it or add it first.");
+                System.exit(0);
+            }
+        }
+        Commit headCommitOfGivenBranch = Commit.getCommitFromFile(commitId);
+        for (String key : headCommitOfGivenBranch.getTrackedBlobs().keySet()) {
+            File blobFile = getPath(BLOBS_DIR, headCommitOfGivenBranch.getBlobHash(key));
+            if (blobFile.exists() && !headCommitOfGivenBranch.getBlobHash(key).equals(sha1((Object) Utils.readContents(blobFile)))) {
+                System.out.println("There is an untracked file in the way; delete it or add it first.");
+                System.exit(0);
+            }
+        }
+    }
+
+    private void switchToACommit(String commitId, String whereCurrentHeadIs) {
+        commitId = getFullId(commitId);
+        checkAnUntrackedFileInTheWay(commitId, whereCurrentHeadIs);
+        if (ADDITION.exists()) {
             ADDITION.delete();
         }
-        if(REMOVAL.exists()){
+        if (REMOVAL.exists()) {
             REMOVAL.delete();
         }
-        commitId = getFullId(commitId);
         Commit headCommitOfCurrentBranch = Commit.getCommitFromFile(HEAD);
         for (String key : headCommitOfCurrentBranch.getTrackedBlobs().keySet()) {
             File notTrackedInCheckedOutBranch = Utils.join(CWD, key);
@@ -400,10 +428,9 @@ public class Repository {
         }
         HEAD = commitId;
         Utils.writeContents(HEAD_FILE, HEAD);
-        if(whereCurrentHeadIs==null){
+        if (whereCurrentHeadIs == null) {
             whereHeadIs = headCommitOfGivenBranch.getBranch();
-        }
-        else {
+        } else {
             whereHeadIs = whereCurrentHeadIs;
         }
         Utils.writeContents(WHEREHEADIS, whereHeadIs);
@@ -411,7 +438,7 @@ public class Repository {
         Utils.writeObject(BRANCH, branch);
     }
 
-    public void merge(String branchName){
+    public void merge(String branchName) {
 
     }
 }

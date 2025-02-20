@@ -33,6 +33,14 @@ public class Commit implements Serializable {
         mather = null;
     }
 
+    public static Commit getCommitFromFile(String parentHas1) {
+        File parentFile = Repository.getPath(Repository.COMMITS_DIR, parentHas1);
+        if (parentFile.exists()) {
+            return Utils.readObject(parentFile, Commit.class);
+        }
+        throw new IllegalArgumentException("No commit with that id exists.");
+    }
+
     public void updateCommit(String message, String father, String mather, Date timestamp, String branch) {
         this.message = message;
         this.father = father;
@@ -59,14 +67,6 @@ public class Commit implements Serializable {
 
     public String getBranch() {
         return branch;
-    }
-
-    public static Commit getCommitFromFile(String parentHas1) {
-        File parentFile = Repository.getPath(Repository.COMMITS_DIR, parentHas1);
-        if (parentFile.exists()) {
-            return Utils.readObject(parentFile, Commit.class);
-        }
-        throw new IllegalArgumentException("No commit with that id exists.");
     }
 
     public void saveCommit() {
@@ -100,8 +100,8 @@ public class Commit implements Serializable {
         Repository.addNewCommitToGlobalLog(this);
     }
 
-    public boolean isTracked(String fileName) {
-        return trackedBlobs.containsKey(fileName);
+    public boolean isTracked(String fileName, String sha1) {
+        return trackedBlobs.containsKey(fileName) && this.getBlobHash(fileName).equals(sha1);
     }
 
     public String getBlobHash(String fileName) {

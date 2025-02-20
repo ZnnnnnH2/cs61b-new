@@ -68,37 +68,35 @@ public class Main {
                 break;
             case "checkout":
                 validateInitalizedDirectory();
-                if(args[1].equals("--")){
-                    validateNumArgs(args,3);
+                if (args[1].equals("--")) {
+                    validateNumArgs(args, 3);
                     repo.checkoutWithFilename(args[2]);
-                }
-                else if(args.length==4&&args[2].equals("--")){
-                    validateNumArgs(args,4);
-                    repo.checkoutWithIdAndFilename(args[1],args[3]);
-                }
-                else{
-                    validateNumArgs(args,2);
+                } else if (args.length == 4 && args[2].equals("--")) {
+                    validateNumArgs(args, 4);
+                    repo.checkoutWithIdAndFilename(args[1], args[3]);
+                } else {
+                    validateNumArgs(args, 2);
                     repo.checkoutWithBranchName(args[1]);
                 }
                 break;
             case "branch":
                 validateInitalizedDirectory();
-                validateNumArgs(args,2);
+                validateNumArgs(args, 2);
                 repo.branch(args[1]);
                 break;
             case "rm-branch":
                 validateInitalizedDirectory();
-                validateNumArgs(args,2);
+                validateNumArgs(args, 2);
                 repo.rmBranch(args[1]);
                 break;
             case "reset":
                 validateInitalizedDirectory();
-                validateNumArgs(args,2);
+                validateNumArgs(args, 2);
                 repo.reset(args[1]);
                 break;
             case "merge":
                 validateInitalizedDirectory();
-                validateNumArgs(args,2);
+                validateNumArgs(args, 2);
                 repo.merge(args[1]);
                 break;
             default:
