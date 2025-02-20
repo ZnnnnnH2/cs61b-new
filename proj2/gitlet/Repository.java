@@ -147,7 +147,18 @@ public class Repository {
         String sha1 = sha1((Object) readContents(file));
         Commit parent = Utils.readObject(getPath(COMMITS_DIR, HEAD), Commit.class);
         if (parent.isTracked(fileName) && parent.getBlobHash(fileName).equals(sha1)) {
+            if(store.containsKey(fileName)){
+                store.remove(fileName);
+                Utils.writeObject(ADDITION, store);
+            }
             return;
+        }
+        if(REMOVAL.exists()) {
+            Set<String> removal = Utils.readObject(REMOVAL, TreeSet.class);
+            if(removal.contains(fileName)){
+                removal.remove(fileName);
+                Utils.writeObject(REMOVAL, (Serializable) removal);
+            }
         }
         File blobFile = getPath(BLOBS_DIR, sha1);
         if (!blobFile.exists()) {
@@ -187,14 +198,16 @@ public class Repository {
         File currentFile = Utils.join(CWD, fileName);
         if (ADDITION.exists()) {
             TreeMap<String, String> store = Utils.readObject(ADDITION, TreeMap.class);
-            for (String key : store.keySet()) {
+            Iterator<String> iterator = store.keySet().iterator();
+            while (iterator.hasNext()) {
+                String key = iterator.next();
                 if (key.equals(fileName)) {
-                    store.remove(key);
+                    iterator.remove();
                     sign = true;
                 }
             }
             if (sign) {
-                Utils.writeContents(ADDITION, store);
+                Utils.writeObject(ADDITION, store);
             }
         }
         File pathOfHeadCommit = getPath(COMMITS_DIR, HEAD);
