@@ -1,8 +1,11 @@
 package gitlet;
 
 import java.io.File;
-import java.util.*;
 import java.io.Serializable;
+import java.util.Date;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
 
 /**
  * Represents a gitlet commit object.
@@ -17,7 +20,6 @@ public class Commit implements Serializable {
      * comment above them describing what that variable represents and how that
      * variable is used. We've provided one example for `message`.
      */
-    ;
     /**
      * The message of this Commit.
      */
@@ -26,7 +28,7 @@ public class Commit implements Serializable {
     private String mather;
     private Date timestamp;
     private String branch;
-    private TreeMap<String, String> trackedBlobs = new TreeMap<>();
+    private final TreeMap<String, String> trackedBlobs = new TreeMap<>();
 
     public Commit() {
         father = null;
@@ -41,12 +43,12 @@ public class Commit implements Serializable {
         throw new IllegalArgumentException("No commit with that id exists.");
     }
 
-    public void updateCommit(String message, String father, String mather, Date timestamp, String branch) {
-        this.message = message;
-        this.father = father;
-        this.mather = mather;
-        this.timestamp = timestamp;
-        this.branch = branch;
+    public void updateCommit(String Message, String Father, String Mather, Date Timestamp, String Branch) {
+        this.message = Message;
+        this.father = Father;
+        this.mather = Mather;
+        this.timestamp = Timestamp;
+        this.branch = Branch;
     }
 
     public String getMessage() {
@@ -70,7 +72,7 @@ public class Commit implements Serializable {
     }
 
     public void saveCommit() {
-        String has1 = Utils.sha1((Object) Utils.serialize(this));
+        String has1 = Utils.sha1(Utils.serialize(this));
         File commitFile = Repository.getPath(Repository.COMMITS_DIR, has1);
         Utils.writeObject(commitFile, this);
         if (Repository.FIND.exists()) {
@@ -102,6 +104,10 @@ public class Commit implements Serializable {
 
     public boolean isTracked(String fileName, String sha1) {
         return trackedBlobs.containsKey(fileName) && this.getBlobHash(fileName).equals(sha1);
+    }
+
+    public boolean isTracked(String fileName) {
+        return trackedBlobs.containsKey(fileName);
     }
 
     public String getBlobHash(String fileName) {
