@@ -406,14 +406,16 @@ public class Repository {
             if (!truelyCheckTracked(file.getName())) {
                 if (nextCommit.isTracked(file.getName())) {
                     if (!nextCommit.isTracked(file.getName(), sha1(readContents(file)))) {
-                        System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+                        System.out.println("There is an untracked file in the way;" +
+                                " delete it, or add and commit it first.");
                         System.exit(0);
                     } else {
                         continue;
                     }
                 }
                 if (headCommit.isTracked(file.getName())) {
-                    System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+                    System.out.println("There is an untracked file in the way;" +
+                            " delete it, or add and commit it first.");
                 }
             }
         }
