@@ -15,7 +15,6 @@ import java.util.TreeSet;
  */
 public class Commit implements Serializable {
     /**
-     *
      * List all instance variables of the Commit class here with a useful
      * comment above them describing what that variable represents and how that
      * variable is used. We've provided one example for `message`.
@@ -43,7 +42,8 @@ public class Commit implements Serializable {
         throw new IllegalArgumentException("No commit with that id exists.");
     }
 
-    public void updateCommit(String messageToUpdate, String fatherToUpdate, String matherToUpdate, Date timestampToUpdate, String branchToUpdate) {
+    public void updateCommit(String messageToUpdate, String fatherToUpdate, String matherToUpdate,
+                             Date timestampToUpdate, String branchToUpdate) {
         this.message = messageToUpdate;
         this.father = fatherToUpdate;
         this.mather = matherToUpdate;

@@ -94,14 +94,14 @@ public class Repository {
     }
 
     public static void addNewCommitToGlobalLog(Commit commit) {
-        StringBuffer logMssage;
+        StringBuffer logMessage;
         if (GLOBALLOG.exists()) {
-            logMssage = Utils.readObject(GLOBALLOG, StringBuffer.class);
+            logMessage = Utils.readObject(GLOBALLOG, StringBuffer.class);
         } else {
-            logMssage = new StringBuffer();
+            logMessage = new StringBuffer();
         }
-        logMssage.append(printSignalLog(commit, sha1(serialize(commit))));
-        Utils.writeObject(GLOBALLOG, logMssage);
+        logMessage.append(printSignalLog(commit, sha1(serialize(commit))));
+        Utils.writeObject(GLOBALLOG, logMessage);
     }
 
     private void forwordHEAD(Commit newcommit) {
@@ -326,6 +326,8 @@ public class Repository {
                 return key;
             }
         }
+        System.out.println("No commit with that id exists.");
+        System.exit(0);
         return null;
     }
 
@@ -394,25 +396,25 @@ public class Repository {
     }
 
     private void checkAnUntrackedFileInTheWay(String commitId) {
-        Commit hCCB = Commit.getCommitFromFile(HEAD);
-        for (String key : hCCB.getTrackedBlobs().keySet()) {
-            File nTICOB = Utils.join(CWD, key);
-            if (nTICOB.exists()
-                    && !hCCB.getBlobHash(key).equals(sha1(Utils.readContents(nTICOB)))) {
-                System.out.println("There is an untracked file in the way;" +
-                        " delete it, or add and commit it first.");
-                System.exit(0);
+        File[] files = CWD.listFiles();
+        for (File file : files) {
+            if (file.isDirectory()) {
+                continue;
             }
-        }
-        Commit hCOJB = Commit.getCommitFromFile(commitId);
-        for (String key : hCOJB.getTrackedBlobs().keySet()) {
-            File blobFile = getPath(BLOBS_DIR, hCOJB.getBlobHash(key));
-            File thisFile = Utils.join(CWD, key);
-            if (thisFile.exists()
-                    && !hCOJB.getBlobHash(key).equals(sha1(Utils.readContents(thisFile)))) {
-                System.out.println("There is an untracked file in the way;" +
-                        " delete it, or add and commit it first.");
-                System.exit(0);
+            Commit nextCommit = Commit.getCommitFromFile(commitId);
+            Commit headCommit = Commit.getCommitFromFile(HEAD);
+            if (!truelyCheckTracked(file.getName())) {
+                if (nextCommit.isTracked(file.getName())) {
+                    if (!nextCommit.isTracked(file.getName(), sha1(readContents(file)))) {
+                        System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+                        System.exit(0);
+                    } else {
+                        continue;
+                    }
+                }
+                if (headCommit.isTracked(file.getName())) {
+                    System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+                }
             }
         }
     }
@@ -481,7 +483,7 @@ public class Repository {
         if (ADDITION.exists()) {
             TreeMap<String, String> store = Utils.readObject(ADDITION, TreeMap.class);
             for (String key : store.keySet()) {
-                if(isRemoved(key)){
+                if (isRemoved(key)) {
                     continue;
                 }
                 File addedFile = Utils.join(CWD, key);
@@ -503,7 +505,7 @@ public class Repository {
         }
     }
 
-    private boolean isRemoved(String fileName){
+    private boolean isRemoved(String fileName) {
         if (REMOVAL.exists()) {
             Set<String> removal = Utils.readObject(REMOVAL, TreeSet.class);
             return removal.contains(fileName);
