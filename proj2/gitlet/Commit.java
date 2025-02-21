@@ -20,6 +20,7 @@ public class Commit implements Serializable {
      * comment above them describing what that variable represents and how that
      * variable is used. We've provided one example for `message`.
      */
+    private final TreeMap<String, String> trackedBlobs = new TreeMap<>();
     /**
      * The message of this Commit.
      */
@@ -28,7 +29,6 @@ public class Commit implements Serializable {
     private String mather;
     private Date timestamp;
     private String branch;
-    private final TreeMap<String, String> trackedBlobs = new TreeMap<>();
 
     public Commit() {
         father = null;
@@ -43,12 +43,12 @@ public class Commit implements Serializable {
         throw new IllegalArgumentException("No commit with that id exists.");
     }
 
-    public void updateCommit(String Message, String Father, String Mather, Date Timestamp, String Branch) {
-        this.message = Message;
-        this.father = Father;
-        this.mather = Mather;
-        this.timestamp = Timestamp;
-        this.branch = Branch;
+    public void updateCommit(String messageToUpdate, String fatherToUpdate, String matherToUpdate, Date timestampToUpdate, String branchToUpdate) {
+        this.message = messageToUpdate;
+        this.father = fatherToUpdate;
+        this.mather = matherToUpdate;
+        this.timestamp = timestampToUpdate;
+        this.branch = branchToUpdate;
     }
 
     public String getMessage() {

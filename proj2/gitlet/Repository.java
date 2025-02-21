@@ -39,7 +39,7 @@ public class Repository {
     public static final File WHEREHEADIS = join(GITLET_DIR, "whereheadis");
     public static final File GETFULLID = join(GITLET_DIR, "getfullid");
     public static final File FIND = join(GITLET_DIR, "find");
-    private static final String main = "master";
+    private static final String MAIN = "master";
     private final TreeMap<String, String> branch;
     //    public static final File FIND = join(GITLET_DIR,"find");
     private String HEAD;
@@ -129,7 +129,7 @@ public class Repository {
         Commit initial = new Commit();
         initial.updateCommit("initial commit", null, null, new Date(0), whereHeadIs);
         initial.saveCommit();
-        whereHeadIs = main;
+        whereHeadIs = MAIN;
         Utils.writeContents(WHEREHEADIS, whereHeadIs);
         forwordHEAD(initial);
     }
@@ -294,7 +294,7 @@ public class Repository {
         File[] fileInCWD = CWD.listFiles();
         System.out.println("=== Modifications Not Staged For Commit ===");
         for (File file : fileInCWD) {
-            if(file.isDirectory()){
+            if (file.isDirectory()) {
                 continue;
             }
             if (truelyCheckTracked(file.getName())) {
@@ -308,7 +308,7 @@ public class Repository {
         System.out.println();
         System.out.println("=== Untracked Files ===");
         for (File file : fileInCWD) {
-            if(file.isDirectory()){
+            if (file.isDirectory()) {
                 continue;
             }
             if (!truelyCheckTracked(file.getName())) {
@@ -320,9 +320,6 @@ public class Repository {
 
     public String getFullId(String id) {
         int len = id.length();
-        if (id.length() == 40) {
-            return id;
-        }
         Set<String> fullid = Utils.readObject(GETFULLID, TreeSet.class);
         for (String key : fullid) {
             if (key.substring(0, len).equals(id)) {
@@ -403,7 +400,7 @@ public class Repository {
             if (nTICOB.exists()
                     && !hCCB.getBlobHash(key).equals(sha1(Utils.readContents(nTICOB)))) {
                 System.out.println("There is an untracked file in the way;" +
-                        " delete it or add it first.");
+                        " delete it, or add and commit it first.");
                 System.exit(0);
             }
         }
@@ -414,7 +411,7 @@ public class Repository {
             if (thisFile.exists()
                     && !hCOJB.getBlobHash(key).equals(sha1(Utils.readContents(thisFile)))) {
                 System.out.println("There is an untracked file in the way;" +
-                        " delete it or add it first.");
+                        " delete it, or add and commit it first.");
                 System.exit(0);
             }
         }
@@ -469,14 +466,10 @@ public class Repository {
     }
 
     private boolean isModified(String fileName, String sha1) {
-        File file = Utils.join(CWD, fileName);
-        if (!file.exists() && file.isFile()) {
-            return false;
-        }
         if (ADDITION.exists()) {
             TreeMap<String, String> store = Utils.readObject(ADDITION, TreeMap.class);
-            if (store.containsKey(fileName) && !store.get(fileName).equals(sha1)) {
-                return true;
+            if (store.containsKey(fileName)) {
+                return !store.get(fileName).equals(sha1);
             }
         }
         Commit headCommit = Commit.getCommitFromFile(HEAD);
@@ -488,6 +481,9 @@ public class Repository {
         if (ADDITION.exists()) {
             TreeMap<String, String> store = Utils.readObject(ADDITION, TreeMap.class);
             for (String key : store.keySet()) {
+                if(isRemoved(key)){
+                    continue;
+                }
                 File addedFile = Utils.join(CWD, key);
                 if (!addedFile.exists()) {
                     System.out.println(key + " (deleted)");
@@ -497,7 +493,7 @@ public class Repository {
         }
         Commit headCommit = Commit.getCommitFromFile(HEAD);
         for (String key : headCommit.getTrackedBlobs().keySet()) {
-            if (f.contains(key)) {
+            if (f.contains(key) || isRemoved(key)) {
                 continue;
             }
             File trackedFile = Utils.join(CWD, key);
@@ -505,5 +501,13 @@ public class Repository {
                 System.out.println(key + " (deleted)");
             }
         }
+    }
+
+    private boolean isRemoved(String fileName){
+        if (REMOVAL.exists()) {
+            Set<String> removal = Utils.readObject(REMOVAL, TreeSet.class);
+            return removal.contains(fileName);
+        }
+        return false;
     }
 }
