@@ -39,9 +39,9 @@ public class Repository {
     public static final File WHEREHEADIS = join(GITLET_DIR, "whereheadis");
     public static final File GETFULLID = join(GITLET_DIR, "getfullid");
     public static final File FIND = join(GITLET_DIR, "find");
+    public static final File REMOTE = join(GITLET_DIR, "remote");
     private static final String MAIN = "master";
     private final TreeMap<String, String> branch;
-    //    public static final File FIND = join(GITLET_DIR,"find");
     private String HEAD;
     private String whereHeadIs;
 
@@ -544,7 +544,7 @@ public class Repository {
             String sha1InSplit = splitCommit.getBlobHash(key);
             if (headCommit.isTracked(key, sha1InSplit)) { //not changed in the current branch
                 if (givenCommit.isTracked(key)) { //undeleted
-                    if (!givenCommit.isTracked(key, sha1InSplit)) {//step1 : modified
+                    if (!givenCommit.isTracked(key, sha1InSplit)) { //step1 : modified
                         signDoChange = true;
                         checkoutWithIdAndFilename(shaGivenCommit, key);
                         add(key);
@@ -579,7 +579,7 @@ public class Repository {
             }
         }
         for (String key : givenCommit.getTrackedBlobs().keySet()) {
-            if (!newCreatedFile.contains(key)) {//step5 : only in given branch
+            if (!newCreatedFile.contains(key)) { //step5 : only in given branch
                 signDoChange = true;
                 checkoutWithIdAndFilename(shaGivenCommit, key);
                 add(key);
@@ -671,5 +671,160 @@ public class Repository {
             return removal.contains(fileName);
         }
         return false;
+    }
+
+    public void addRemote(String remoteName, String remotePath) {
+        TreeMap<String, File> remote;
+        if (REMOTE.exists()) {
+            remote = readObject(REMOTE, TreeMap.class);
+        } else {
+            remote = new TreeMap<>();
+        }
+        if (remote.containsKey(remoteName)) {
+            System.out.println("A remote with that name already exists.");
+            System.exit(0);
+        }
+        String systemSpecificPath = remotePath.replace("/", File.separator);
+        File remoteDir = new File(systemSpecificPath);
+        remote.put(remoteName, remoteDir);
+        writeObject(REMOTE, remote);
+    }
+
+    public void rmRemote(String remoteName) {
+        if (!REMOTE.exists()) {
+            System.out.println("A remote with that name does not exist.");
+            System.exit(0);
+        }
+        TreeMap<String, File> remote = readObject(REMOTE, TreeMap.class);
+        if (!remote.containsKey(remoteName)) {
+            System.out.println("A remote with that name does not exist.");
+            System.exit(0);
+        }
+        remote.remove(remoteName);
+        writeObject(REMOTE, remote);
+    }
+
+    public void push(String remoteName, String remoteBranchName) {
+        if (!REMOTE.exists()) {
+            System.out.println("Remote directory not found.");
+            System.exit(0);
+        }
+        TreeMap<String, File> remote = readObject(REMOTE, TreeMap.class);
+        if (!remote.containsKey(remoteName)) {
+            System.out.println("Remote directory not found.");
+            System.exit(0);
+        }
+        File remoteDir = remote.get(remoteName);
+        File remoteHead = join(remoteDir, "HEAD");
+        File remoteBranch = join(remoteDir, "branch");
+        if (!remoteHead.exists() || !remoteBranch.exists()) {
+            System.out.println("Remote directory not found.");
+            System.exit(0);
+        }
+        TreeMap<String, String> remoteBranches = readObject(remoteBranch, TreeMap.class);
+        String remoteHeadCommit = readContentsAsString(remoteHead);
+        if (!remoteBranches.containsKey(remoteBranchName)) {
+            remoteBranches.put(remoteBranchName, remoteHeadCommit);
+            writeObject(remoteBranch, remoteBranches);
+            System.exit(0);
+        }
+        String remoteBranchCommit = remoteBranches.get(remoteBranchName);
+        if(!isInhistory(remoteBranchCommit, HEAD)) {
+            System.out.println("Please pull down remote changes before pushing.");
+            System.exit(0);
+        }
+        File remoteCommitPath = join(remoteDir, "commits");
+        File remoteBlobPath = join(remoteDir, "blobs");
+        moveToRemote(HEAD, remoteCommitPath, remoteBlobPath);
+        remoteBranches.put(remoteBranchName, HEAD);
+        writeObject(remoteBranch, remoteBranches);
+    }
+
+    private boolean isInhistory(String remoteCommitSha1, String localCommitSha1) {
+        if (localCommitSha1 == null) {
+            return false;
+        }
+        if (localCommitSha1.equals(remoteCommitSha1)) {
+            return true;
+        }
+        Commit localCommit = readObject(getPath(COMMITS_DIR, localCommitSha1), Commit.class);
+        return isInhistory(remoteCommitSha1, localCommit.getFather()) || isInhistory(remoteCommitSha1, localCommit.getMather());
+    }
+
+    private void moveToRemote(String localCommitsha1, File remoteCommitPath, File remoteBlobPath) {
+        if (localCommitsha1 == null) {
+            return;
+        }
+        File localCommitFile = getPath(COMMITS_DIR, localCommitsha1);
+        Commit localCommit = readObject(localCommitFile, Commit.class);
+        File commitFileInRemote = getPath(remoteCommitPath, sha1((Object) serialize(localCommit)));
+        if (!commitFileInRemote.exists()) {
+            writeObject(commitFileInRemote, localCommit);
+            for (String key : localCommit.getTrackedBlobs().keySet()) {
+                File localblobFile = getPath(BLOBS_DIR, localCommit.getBlobHash(key));
+                File blobFileInRemote = getPath(remoteBlobPath, localCommit.getBlobHash(key));
+                if (!blobFileInRemote.exists()) {
+                    writeContents(blobFileInRemote, readContents(localblobFile));
+                }
+            }
+        }
+        moveToRemote(localCommit.getFather(), remoteCommitPath, remoteBlobPath);
+        moveToRemote(localCommit.getMather(), remoteCommitPath, remoteBlobPath);
+    }
+
+    public void fetch(String remoteName, String remoteBranchName) {
+        TreeMap<String, File> remote = readObject(REMOTE, TreeMap.class);
+        if (!remote.containsKey(remoteName)) {
+            System.out.println("Remote directory not found.");
+            System.exit(0);
+        }
+        File remoteDir = remote.get(remoteName);
+        File branches = join(remoteDir, "branch");
+        if (!branches.exists()) {
+            System.out.println("That remote does not have that branch.");
+            System.exit(0);
+        }
+        TreeMap<String, String> remoteBranches = readObject(branches, TreeMap.class);
+        if (!remoteBranches.containsKey(remoteBranchName)) {
+            System.out.println("That remote does not have that branch.");
+            System.exit(0);
+        }
+        String remoteBranchCommitSha1 = remoteBranches.get(remoteBranchName);
+        File remoteCommitPath = join(remoteDir, "commits");
+        File remoteBlobPath = join(remoteDir, "blobs");
+        File remoteCurrentCommitPath = getPath(remoteCommitPath, remoteBranchCommitSha1);
+        Commit remoteCommit = readObject(remoteCurrentCommitPath, Commit.class);
+        String newBranchName = remoteName + "/" + remoteBranchName;
+        if (!branch.containsKey(newBranchName)) {
+            branch.put(newBranchName, remoteBranchCommitSha1);
+            writeObject(BRANCH, branch);
+        }
+        moveToLocal(remoteBranchCommitSha1, remoteCommitPath, remoteBlobPath);
+    }
+
+    private void moveToLocal(String remoteCommitsha1, File remoteCommitPath, File remoteBlobPath) {
+        if (remoteCommitsha1 == null) {
+            return;
+        }
+        File remoteCommitFile = getPath(remoteCommitPath, remoteCommitsha1);
+        Commit remoteCommit = readObject(remoteCommitFile, Commit.class);
+        File commitFileInLocal = getPath(COMMITS_DIR, sha1((Object) serialize(remoteCommit)));
+        if (!commitFileInLocal.exists()) {
+            writeObject(commitFileInLocal, remoteCommit);
+            for (String key : remoteCommit.getTrackedBlobs().keySet()) {
+                File remoteblobFile = getPath(remoteBlobPath, remoteCommit.getBlobHash(key));
+                File blobFileInLocal = getPath(BLOBS_DIR, remoteCommit.getBlobHash(key));
+                if (!blobFileInLocal.exists()) {
+                    writeContents(blobFileInLocal, readContents(remoteblobFile));
+                }
+            }
+        }
+        moveToLocal(remoteCommit.getFather(), remoteCommitPath, remoteBlobPath);
+        moveToLocal(remoteCommit.getMather(), remoteCommitPath, remoteBlobPath);
+    }
+
+    public void pull(String remoteName, String remoteBranchName) {
+        fetch(remoteName, remoteBranchName);
+        merge(remoteName + "/" + remoteBranchName);
     }
 }

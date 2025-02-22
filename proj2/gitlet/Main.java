@@ -99,6 +99,31 @@ public class Main {
                 validateNumArgs(args, 2);
                 repo.merge(args[1]);
                 break;
+            case "add-remote":
+                validateInitalizedDirectory();
+                validateNumArgs(args, 3);
+                repo.addRemote(args[1], args[2]);
+                break;
+            case "rm-remote":
+                validateInitalizedDirectory();
+                validateNumArgs(args, 2);
+                repo.rmRemote(args[1]);
+                break;
+            case "push":
+                validateInitalizedDirectory();
+                validateNumArgs(args, 3);
+                repo.push(args[1], args[2]);
+                break;
+            case "fetch":
+                validateInitalizedDirectory();
+                validateNumArgs(args, 3);
+                repo.fetch(args[1], args[2]);
+                break;
+            case "pull":
+                validateInitalizedDirectory();
+                validateNumArgs(args, 3);
+                repo.pull(args[1], args[2]);
+                break;
             default:
                 System.out.println("No command with that name exists.");
                 System.exit(0);
