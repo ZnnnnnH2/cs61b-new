@@ -39,7 +39,6 @@ public class Repository {
     public static final File WHEREHEADIS = join(GITLET_DIR, "whereheadis");
     public static final File GETFULLID = join(GITLET_DIR, "getfullid");
     public static final File FIND = join(GITLET_DIR, "find");
-    public static final File SPLITPOINT = join(Repository.GITLET_DIR, "splitPoint");
     private static final String MAIN = "master";
     private final TreeMap<String, String> branch;
     //    public static final File FIND = join(GITLET_DIR,"find");
@@ -382,17 +381,6 @@ public class Repository {
         }
         branch.put(branchName, HEAD);
         writeObject(BRANCH, branch);
-        HashMap<Pair<String, String>, String> splitPointMap;
-        if (SPLITPOINT.exists()) {
-            splitPointMap = readObject(SPLITPOINT, HashMap.class);
-        } else {
-            splitPointMap = new HashMap<>();
-        }
-        Pair<String, String> pair = new Pair<>(branchName, whereHeadIs);
-        Pair<String, String> pair2 = new Pair<>(whereHeadIs, branchName);
-        splitPointMap.put(pair, HEAD);
-        splitPointMap.put(pair2, HEAD);
-        writeObject(SPLITPOINT, splitPointMap);
     }
 
     public void rmBranch(String branchName) {
@@ -499,16 +487,48 @@ public class Repository {
         }
     }
 
+    private Set<String> getParentCommit(String sha1) {
+        Set<String> parentCommit = new HashSet<>();
+        if (sha1 == null) {
+            return parentCommit;
+        }
+        parentCommit.add(sha1);
+        parentCommit.addAll(getParentCommit(Commit.getCommitFromFile(sha1).getFather()));
+        parentCommit.addAll(getParentCommit(Commit.getCommitFromFile(sha1).getMather()));
+        return parentCommit;
+    }
+
+    private Commit getSplitCommit(Commit commit1, Commit commit2) {
+        Set<String> parentCommit = getParentCommit(sha1((Object) serialize(commit1)));
+        ArrayList<String> pC = new ArrayList<>();
+        pC.add(sha1((Object) serialize(commit2)));
+        while (!pC.isEmpty()) {
+            String sha1 = pC.remove(0);
+            if (!parentCommit.contains(sha1)) {
+                Commit commit = Commit.getCommitFromFile(sha1);
+                if (commit.getFather() != null) {
+                    pC.add(commit.getFather());
+                }
+                if (commit.getMather() != null) {
+                    pC.add(commit.getMather());
+                }
+            } else {
+                return Commit.getCommitFromFile(sha1);
+            }
+        }
+        return commit1;
+    }
+
     public void merge(String branchName) {
         boolean sign = false;
         boolean signDoChange = false;
         beforeMergeCheck(branchName);
         checkAnUntrackedFileInTheWay(branch.get(branchName));
-        HashMap<Pair<String, String>, String> splitPointMap = readObject(SPLITPOINT, HashMap.class);
-        String splitPoint = splitPointMap.get(new Pair<>(branchName, whereHeadIs));
         Commit headCommit = Commit.getCommitFromFile(HEAD);
         String shaGivenCommit = branch.get(branchName);
         Commit givenCommit = Commit.getCommitFromFile(shaGivenCommit);
+        Commit splitCommit = getSplitCommit(headCommit, givenCommit);
+        String splitPoint = sha1((Object) serialize(splitCommit));
         if (splitPoint.equals(shaGivenCommit)) {
             System.out.println("Given branch is an ancestor of the current branch.");
             System.exit(0);
@@ -518,7 +538,6 @@ public class Repository {
             System.out.println("Current branch fast-forwarded.");
             System.exit(0);
         }
-        Commit splitCommit = Commit.getCommitFromFile(splitPoint);
         Set<String> newCreatedFile = new TreeSet<>();
         for (String key : splitCommit.getTrackedBlobs().keySet()) {
             newCreatedFile.add(key);
@@ -529,13 +548,10 @@ public class Repository {
                         signDoChange = true;
                         checkoutWithIdAndFilename(shaGivenCommit, key);
                         add(key);
-                    } else {//step2 : unmodified in the two branch
-                        continue;
                     }
                 } else { //deleted step6 : Any files present at the split point.
                     signDoChange = true;
                     rm(key);
-                    continue;
                 }
             } else if (!headCommit.isTracked(key)) {
                 if (givenCommit.isTracked(key) && !givenCommit.isTracked(key, sha1InSplit)) {
@@ -553,14 +569,9 @@ public class Repository {
             }
         }
         for (String key : headCommit.getTrackedBlobs().keySet()) {
-            if (!newCreatedFile.contains(key)) {
-                if (!givenCommit.isTracked(key)) {
-                    //step4 : only in current branch
-                    continue;
-                }
-                if (headCommit.getBlobHash(key).equals(givenCommit.getBlobHash(key))) {
-                    continue;
-                }
+            if (!newCreatedFile.contains(key)
+                    && givenCommit.isTracked(key)
+                    && !headCommit.getBlobHash(key).equals(givenCommit.getBlobHash(key))) {
                 signDoChange = true;
                 sign = true;
                 newCreatedFile.add(key);
@@ -568,8 +579,7 @@ public class Repository {
             }
         }
         for (String key : givenCommit.getTrackedBlobs().keySet()) {
-            if (!newCreatedFile.contains(key)) {
-                //step5 : only in given branch
+            if (!newCreatedFile.contains(key)) {//step5 : only in given branch
                 signDoChange = true;
                 checkoutWithIdAndFilename(shaGivenCommit, key);
                 add(key);
@@ -586,14 +596,14 @@ public class Repository {
     private void changeFile(String key, Commit headCommit, Commit givenCommit) {
         String content = "";
         content += "<<<<<<< HEAD\n";
-        if(headCommit.getBlobHash(key) != null) {
+        if (headCommit.getBlobHash(key) != null) {
             File file1 = getPath(BLOBS_DIR, headCommit.getBlobHash(key));
             if (file1.exists()) {
                 content += readContentsAsString(file1);
             }
         }
         content += "=======\n";
-        if(givenCommit.getBlobHash(key) != null) {
+        if (givenCommit.getBlobHash(key) != null) {
             File file2 = getPath(BLOBS_DIR, givenCommit.getBlobHash(key));
             if (file2.exists()) {
                 content += readContentsAsString(file2);
