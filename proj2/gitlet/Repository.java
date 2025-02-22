@@ -39,22 +39,27 @@ public class Repository {
     public static final File WHEREHEADIS = join(GITLET_DIR, "whereheadis");
     public static final File GETFULLID = join(GITLET_DIR, "getfullid");
     public static final File FIND = join(GITLET_DIR, "find");
+    public static final File splitPoint = Utils.join(Repository.GITLET_DIR, "splitPoint");
     private static final String MAIN = "master";
     private final TreeMap<String, String> branch;
     //    public static final File FIND = join(GITLET_DIR,"find");
     private String HEAD;
     private String whereHeadIs;
+    private HashMap<Pair<String, String>, String> splitPointMap = new HashMap<>();
 
     public Repository() {
         if (isInitialized()) {
             HEAD = Utils.readContentsAsString(HEAD_FILE);
             branch = Utils.readObject(BRANCH, TreeMap.class);
             whereHeadIs = Utils.readContentsAsString(WHEREHEADIS);
+            splitPointMap = Utils.readObject(splitPoint, HashMap.class);
         } else {
             HEAD = null;
             branch = new TreeMap<>();
             whereHeadIs = null;
+            splitPointMap = new HashMap<>();
         }
+
     }
 
     public static boolean isInitialized() {
@@ -121,8 +126,8 @@ public class Repository {
 
     public void init() {
         if (isInitialized()) {
-            System.out.println("A Gitlet version-control system " +
-                    "already exists in the current directory.");
+            System.out.println("A Gitlet version-control system "
+                    + "already exists in the current directory.");
             System.exit(0);
         }
         createDir();
@@ -172,10 +177,15 @@ public class Repository {
         Utils.writeObject(ADDITION, store);
     }
 
-    public void commit(String message) {
+    public void commit(String... messages) {
+        String mother = null;
+        if (messages.length == 2) {
+            mother = messages[1];
+        }
+        String message = messages[0];
         File parent = getPath(COMMITS_DIR, HEAD);
         Commit newCommit = Utils.readObject(parent, Commit.class);
-        newCommit.updateCommit(message, HEAD, null, new Date(), whereHeadIs);
+        newCommit.updateCommit(message, HEAD, mother, new Date(), whereHeadIs);
         if (ADDITION.exists()) {
             TreeMap<String, String> store = Utils.readObject(ADDITION, TreeMap.class);
             for (String fileName : store.keySet()) {
@@ -371,6 +381,9 @@ public class Repository {
         }
         branch.put(branchName, HEAD);
         Utils.writeObject(BRANCH, branch);
+        Pair<String, String> pair = new Pair<>(branchName, whereHeadIs);
+        setSplitPoint(whereHeadIs, branchName, HEAD);
+        saveSplitPoint();
     }
 
     public void rmBranch(String branchName) {
@@ -406,16 +419,16 @@ public class Repository {
             if (!truelyCheckTracked(file.getName())) {
                 if (nextCommit.isTracked(file.getName())) {
                     if (!nextCommit.isTracked(file.getName(), sha1(readContents(file)))) {
-                        System.out.println("There is an untracked file in the way;" +
-                                " delete it, or add and commit it first.");
+                        System.out.println("There is an untracked file in the way;"
+                                + " delete it, or add and commit it first.");
                         System.exit(0);
                     } else {
                         continue;
                     }
                 }
                 if (headCommit.isTracked(file.getName())) {
-                    System.out.println("There is an untracked file in the way;" +
-                            " delete it, or add and commit it first.");
+                    System.out.println("There is an untracked file in the way;"
+                            + " delete it, or add and commit it first.");
                 }
             }
         }
@@ -453,7 +466,124 @@ public class Repository {
     }
 
     public void merge(String branchName) {
+        boolean sign = false;
+        boolean signDoChange = false;
+        if (ADDITION.exists()) {
+            TreeMap<String, String> store = Utils.readObject(ADDITION, TreeMap.class);
+            if (!store.isEmpty()) {
+                System.out.println("You have uncommitted changes.");
+                System.exit(0);
+            }
+        }
+        if (REMOVAL.exists()) {
+            Set<String> removal = Utils.readObject(REMOVAL, TreeSet.class);
+            if (!removal.isEmpty()) {
+                System.out.println("You have uncommitted changes.");
+                System.exit(0);
+            }
+        }
+        if (!branch.containsKey(branchName)) {
+            System.out.println("A branch with that name does not exist.");
+            System.exit(0);
+        }
+        if (branchName.equals(whereHeadIs)) {
+            System.out.println("Cannot merge a branch with itself.");
+            System.exit(0);
+        }
+        checkAnUntrackedFileInTheWay(branch.get(branchName));
+        String splitPoint = getSplitPoint(whereHeadIs, branchName);
+        Commit headCommit = Commit.getCommitFromFile(HEAD);
+        String shaGivenCommit = branch.get(branchName);
+        Commit givenCommit = Commit.getCommitFromFile(shaGivenCommit);
+        if (splitPoint.equals(shaGivenCommit)) {
+            System.out.println("Given branch is an ancestor of the current branch.");
+            System.exit(0);
+        }
+        if (splitPoint.equals(HEAD)) {
+            checkoutWithBranchName(branchName);
+            System.out.println("Current branch fast-forwarded.");
+            System.exit(0);
+        }
+        Commit splitCommit = Commit.getCommitFromFile(splitPoint);
+        Set<String> newCreatedFile = new TreeSet<>();
+        for (String key : splitCommit.getTrackedBlobs().keySet()) {
+            newCreatedFile.add(key);
+            String sha1InSplit = splitCommit.getBlobHash(key);
+            if (headCommit.isTracked(key, sha1InSplit)) { //not changed in the current branch
+                if (givenCommit.isTracked(key)) {
+                    if (!givenCommit.isTracked(key, sha1InSplit)) {
+                        //step1 : check if the file is modified in the given branch
+                        signDoChange = true;
+                        checkoutWithIdAndFilename(shaGivenCommit, key);
+                        add(key);
+                    } else {
+                        //step2 : unmodified in the two branch
+                        continue;
+                    }
+                } else {
+                    //step6 : Any files present at the split point,
+                    // unmodified in the current branch,
+                    // and absent in the given branch should be removed (and untracked).
+                    signDoChange = true;
+                    rm(key);
+                    continue;
+                }
+            }
+            if (headCommit.getBlobHash(key).equals(givenCommit.getBlobHash(key))) {
+                //make same change
+                //step3 : same file
+                continue;
+            }
+            signDoChange = true;
+            changeFile(key, shaGivenCommit, newCreatedFile, headCommit, givenCommit);
+            sign = true;
+        }
+        for (String key : headCommit.getTrackedBlobs().keySet()) {
+            if (!newCreatedFile.contains(key)) {
+                if (!givenCommit.isTracked(key)) {
+                    //step4 : only in current branch
+                    continue;
+                }
+                if (headCommit.getBlobHash(key).equals(givenCommit.getBlobHash(key))) {
+                    continue;
+                }
+                signDoChange = true;
+                sign = true;
+                changeFile(key, shaGivenCommit, newCreatedFile, headCommit, givenCommit);
+            }
+        }
+        for (String key : givenCommit.getTrackedBlobs().keySet()) {
+            if (!newCreatedFile.contains(key)) {
+                //step5 : only in given branch
+                signDoChange = true;
+                checkoutWithIdAndFilename(shaGivenCommit, key);
+                add(key);
+            }
+        }
+        if (signDoChange) {
+            commit("Merged " + whereHeadIs + " into " + branchName + ".", shaGivenCommit);
+        }
+        if (sign) {
+            System.out.println("Encountered a merge conflict.");
+        }
+    }
 
+    private void changeFile(String key, String shaGivenCommit, Set<String> newCreatedFile,
+                            Commit headCommit, Commit givenCommit) {
+        StringBuffer content = new StringBuffer();
+        content.append("<<<<<<< HEAD\n");
+        File file1 = getPath(BLOBS_DIR, headCommit.getBlobHash(key));
+        if (file1.exists()) {
+            content.append(Utils.readContentsAsString(file1));
+        }
+        content.append("=======\n");
+        File file2 = getPath(BLOBS_DIR, givenCommit.getBlobHash(key));
+        if (file2.exists()) {
+            content.append(Utils.readContentsAsString(file2));
+        }
+        content.append(">>>>>>>\n");
+        Utils.writeContents(Utils.join(CWD, key), content.toString());
+        add(key);
     }
 
     private boolean truelyCheckTracked(String fileName) {
@@ -514,4 +644,19 @@ public class Repository {
         }
         return false;
     }
+
+    public void setSplitPoint(String branchName1, String branchName2, String ash1) {
+        Pair<String, String> branchPair = new Pair<>(branchName1, branchName2);
+        splitPointMap.put(branchPair, ash1);
+    }
+
+    public String getSplitPoint(String branchName1, String branchName2) {
+        Pair<String, String> branchPair = new Pair<>(branchName1, branchName2);
+        return splitPointMap.get(branchPair);
+    }
+
+    public void saveSplitPoint() {
+        Utils.writeObject(splitPoint, splitPointMap);
+    }
+
 }
