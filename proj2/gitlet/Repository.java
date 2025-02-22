@@ -122,7 +122,8 @@ public class Repository {
 
     public void init() {
         if (isInitialized()) {
-            System.out.println("A Gitlet version-control system " + "already exists in the current directory.");
+            System.out.println("A Gitlet version-control system "
+                    + "already exists in the current directory.");
             System.exit(0);
         }
         createDir();
@@ -388,7 +389,9 @@ public class Repository {
             splitPointMap = new HashMap<>();
         }
         Pair<String, String> pair = new Pair<>(branchName, whereHeadIs);
+        Pair<String, String> pair2 = new Pair<>(whereHeadIs, branchName);
         splitPointMap.put(pair, HEAD);
+        splitPointMap.put(pair2, HEAD);
         writeObject(SPLITPOINT, splitPointMap);
     }
 
@@ -425,14 +428,16 @@ public class Repository {
             if (!truelyCheckTracked(file.getName())) {
                 if (nextCommit.isTracked(file.getName())) {
                     if (!nextCommit.isTracked(file.getName(), sha1(readContents(file)))) {
-                        System.out.println("There is an untracked file in the way;" + " delete it, or add and commit it first.");
+                        System.out.println("There is an untracked file in the way;"
+                                + " delete it, or add and commit it first.");
                         System.exit(0);
                     } else {
                         continue;
                     }
                 }
                 if (headCommit.isTracked(file.getName())) {
-                    System.out.println("There is an untracked file in the way;" + " delete it, or add and commit it first.");
+                    System.out.println("There is an untracked file in the way;"
+                            + " delete it, or add and commit it first.");
                 }
             }
         }
@@ -581,14 +586,18 @@ public class Repository {
     private void changeFile(String key, Commit headCommit, Commit givenCommit) {
         String content = "";
         content += "<<<<<<< HEAD\n";
-        File file1 = getPath(BLOBS_DIR, headCommit.getBlobHash(key));
-        if (file1.exists()) {
-            content += readContentsAsString(file1);
+        if(headCommit.getBlobHash(key) != null) {
+            File file1 = getPath(BLOBS_DIR, headCommit.getBlobHash(key));
+            if (file1.exists()) {
+                content += readContentsAsString(file1);
+            }
         }
         content += "=======\n";
-        File file2 = getPath(BLOBS_DIR, givenCommit.getBlobHash(key));
-        if (file2.exists()) {
-            content += readContentsAsString(file2);
+        if(givenCommit.getBlobHash(key) != null) {
+            File file2 = getPath(BLOBS_DIR, givenCommit.getBlobHash(key));
+            if (file2.exists()) {
+                content += readContentsAsString(file2);
+            }
         }
         content += ">>>>>>>\n";
         writeContents(join(CWD, key), content);
