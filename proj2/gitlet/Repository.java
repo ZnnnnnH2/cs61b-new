@@ -78,12 +78,11 @@ public class Repository {
         logMessage.append("commit ").append(sha1);
         logMessage.append("\n");
         if (commit.getMather() != null) {
-            logMessage.append("Merge: " + commit.getFather().substring(0, 8)
-                    + " " + commit.getMather().substring(0, 8));
+            logMessage.append("Merge: " + commit.getFather().substring(0, 7)
+                    + " " + commit.getMather().substring(0, 7));
             logMessage.append("\n");
         }
-        String formatted = String.format(
-                Locale.US, // 指定英文格式
+        String formatted = String.format(Locale.US, // 指定英文格式
                 "%1$ta %1$tb %1$te %1$tT %1$tY %1$tz", // 格式化模板
                 commit.getTimestamp() // 要格式化的时间
         );
@@ -123,8 +122,7 @@ public class Repository {
 
     public void init() {
         if (isInitialized()) {
-            System.out.println("A Gitlet version-control system "
-                    + "already exists in the current directory.");
+            System.out.println("A Gitlet version-control system " + "already exists in the current directory.");
             System.exit(0);
         }
         createDir();
@@ -149,14 +147,7 @@ public class Repository {
             System.exit(0);
         }
         String sha1 = sha1(readContents(file));
-        Commit parent = readObject(getPath(COMMITS_DIR, HEAD), Commit.class);
-        if (parent.isTracked(fileName, sha1) && parent.getBlobHash(fileName).equals(sha1)) {
-            if (store.containsKey(fileName)) {
-                store.remove(fileName);
-                writeObject(ADDITION, store);
-            }
-            return;
-        }
+        Commit parent = Commit.getCommitFromFile(HEAD);
         if (REMOVAL.exists()) {
             Set<String> removal = readObject(REMOVAL, TreeSet.class);
             if (removal.contains(fileName)) {
@@ -164,6 +155,13 @@ public class Repository {
                 writeObject(REMOVAL, (Serializable) removal);
                 System.exit(0);
             }
+        }
+        if (parent.isTracked(fileName, sha1) && parent.getBlobHash(fileName).equals(sha1)) {
+            if (store.containsKey(fileName)) {
+                store.remove(fileName);
+                writeObject(ADDITION, store);
+            }
+            return;
         }
         File blobFile = getPath(BLOBS_DIR, sha1);
         if (!blobFile.exists()) {
@@ -183,19 +181,24 @@ public class Repository {
         File parent = getPath(COMMITS_DIR, HEAD);
         Commit newCommit = readObject(parent, Commit.class);
         newCommit.updateCommit(message, HEAD, mother, new Date(), whereHeadIs);
+        boolean sign = false;
         if (ADDITION.exists()) {
             TreeMap<String, String> store = readObject(ADDITION, TreeMap.class);
             for (String fileName : store.keySet()) {
                 newCommit.put(fileName, store.get(fileName));
             }
             ADDITION.delete();
-        } else if (REMOVAL.exists()) {
+            sign = true;
+        }
+        if (REMOVAL.exists()) {
             Set<String> removal = readObject(REMOVAL, TreeSet.class);
             for (String fileName : removal) {
                 newCommit.remove(fileName);
             }
             REMOVAL.delete();
-        } else {
+            sign = true;
+        }
+        if (!sign) {
             System.out.println("No changes added to the commit.");
             System.exit(0);
         }
@@ -422,16 +425,14 @@ public class Repository {
             if (!truelyCheckTracked(file.getName())) {
                 if (nextCommit.isTracked(file.getName())) {
                     if (!nextCommit.isTracked(file.getName(), sha1(readContents(file)))) {
-                        System.out.println("There is an untracked file in the way;"
-                                + " delete it, or add and commit it first.");
+                        System.out.println("There is an untracked file in the way;" + " delete it, or add and commit it first.");
                         System.exit(0);
                     } else {
                         continue;
                     }
                 }
                 if (headCommit.isTracked(file.getName())) {
-                    System.out.println("There is an untracked file in the way;"
-                            + " delete it, or add and commit it first.");
+                    System.out.println("There is an untracked file in the way;" + " delete it, or add and commit it first.");
                 }
             }
         }
@@ -468,9 +469,7 @@ public class Repository {
         writeObject(BRANCH, branch);
     }
 
-    public void merge(String branchName) {
-        boolean sign = false;
-        boolean signDoChange = false;
+    private void beforeMergeCheck(String branchName) {
         if (ADDITION.exists()) {
             TreeMap<String, String> store = readObject(ADDITION, TreeMap.class);
             if (!store.isEmpty()) {
@@ -493,6 +492,12 @@ public class Repository {
             System.out.println("Cannot merge a branch with itself.");
             System.exit(0);
         }
+    }
+
+    public void merge(String branchName) {
+        boolean sign = false;
+        boolean signDoChange = false;
+        beforeMergeCheck(branchName);
         checkAnUntrackedFileInTheWay(branch.get(branchName));
         HashMap<Pair<String, String>, String> splitPointMap = readObject(SPLITPOINT, HashMap.class);
         String splitPoint = splitPointMap.get(new Pair<>(branchName, whereHeadIs));
@@ -514,33 +519,33 @@ public class Repository {
             newCreatedFile.add(key);
             String sha1InSplit = splitCommit.getBlobHash(key);
             if (headCommit.isTracked(key, sha1InSplit)) { //not changed in the current branch
-                if (givenCommit.isTracked(key)) {
-                    if (!givenCommit.isTracked(key, sha1InSplit)) {
-                        //step1 : check if the file is modified in the given branch
+                if (givenCommit.isTracked(key)) { //undeleted
+                    if (!givenCommit.isTracked(key, sha1InSplit)) {//step1 : modified
                         signDoChange = true;
                         checkoutWithIdAndFilename(shaGivenCommit, key);
                         add(key);
-                    } else {
-                        //step2 : unmodified in the two branch
+                    } else {//step2 : unmodified in the two branch
                         continue;
                     }
-                } else {
-                    //step6 : Any files present at the split point,
-                    // unmodified in the current branch,
-                    // and absent in the given branch should be removed (and untracked).
+                } else { //deleted step6 : Any files present at the split point.
                     signDoChange = true;
                     rm(key);
                     continue;
                 }
+            } else if (!headCommit.isTracked(key)) {
+                if (givenCommit.isTracked(key) && !givenCommit.isTracked(key, sha1InSplit)) {
+                    signDoChange = true;
+                    changeFile(key, headCommit, givenCommit);
+                    sign = true;
+                }
+            } else {
+                if (!givenCommit.isTracked(key, sha1InSplit)
+                        && !headCommit.getBlobHash(key).equals(givenCommit.getBlobHash(key))) {
+                    signDoChange = true;
+                    changeFile(key, headCommit, givenCommit);
+                    sign = true;
+                }
             }
-            if (headCommit.getBlobHash(key).equals(givenCommit.getBlobHash(key))) {
-                //make same change
-                //step3 : same file
-                continue;
-            }
-            signDoChange = true;
-            changeFile(key, headCommit, givenCommit);
-            sign = true;
         }
         for (String key : headCommit.getTrackedBlobs().keySet()) {
             if (!newCreatedFile.contains(key)) {
