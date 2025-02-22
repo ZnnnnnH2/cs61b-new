@@ -39,25 +39,22 @@ public class Repository {
     public static final File WHEREHEADIS = join(GITLET_DIR, "whereheadis");
     public static final File GETFULLID = join(GITLET_DIR, "getfullid");
     public static final File FIND = join(GITLET_DIR, "find");
-    public static final File splitPoint = Utils.join(Repository.GITLET_DIR, "splitPoint");
+    public static final File SPLITPOINT = join(Repository.GITLET_DIR, "splitPoint");
     private static final String MAIN = "master";
     private final TreeMap<String, String> branch;
     //    public static final File FIND = join(GITLET_DIR,"find");
     private String HEAD;
     private String whereHeadIs;
-    private HashMap<Pair<String, String>, String> splitPointMap = new HashMap<>();
 
     public Repository() {
         if (isInitialized()) {
-            HEAD = Utils.readContentsAsString(HEAD_FILE);
-            branch = Utils.readObject(BRANCH, TreeMap.class);
-            whereHeadIs = Utils.readContentsAsString(WHEREHEADIS);
-            splitPointMap = Utils.readObject(splitPoint, HashMap.class);
+            HEAD = readContentsAsString(HEAD_FILE);
+            branch = readObject(BRANCH, TreeMap.class);
+            whereHeadIs = readContentsAsString(WHEREHEADIS);
         } else {
             HEAD = null;
             branch = new TreeMap<>();
             whereHeadIs = null;
-            splitPointMap = new HashMap<>();
         }
 
     }
@@ -67,11 +64,11 @@ public class Repository {
     }
 
     public static File getPath(File frontPath, String sha1) {
-        File path = Utils.join(frontPath, sha1.substring(0, 2));
+        File path = join(frontPath, sha1.substring(0, 2));
         if (!path.exists()) {
             path.mkdir();
         }
-        return Utils.join(path, sha1.substring(2));
+        return join(path, sha1.substring(2));
     }
 
     private static StringBuffer printSignalLog(Commit commit, String sha1) {
@@ -101,20 +98,20 @@ public class Repository {
     public static void addNewCommitToGlobalLog(Commit commit) {
         StringBuffer logMessage;
         if (GLOBALLOG.exists()) {
-            logMessage = Utils.readObject(GLOBALLOG, StringBuffer.class);
+            logMessage = readObject(GLOBALLOG, StringBuffer.class);
         } else {
             logMessage = new StringBuffer();
         }
         logMessage.append(printSignalLog(commit, sha1(serialize(commit))));
-        Utils.writeObject(GLOBALLOG, logMessage);
+        writeObject(GLOBALLOG, logMessage);
     }
 
     private void forwordHEAD(Commit newcommit) {
         String sha1 = sha1(serialize(newcommit));
         HEAD = sha1;
-        Utils.writeContents(HEAD_FILE, HEAD);
+        writeContents(HEAD_FILE, HEAD);
         branch.put(whereHeadIs, HEAD);
-        Utils.writeObject(BRANCH, branch);
+        writeObject(BRANCH, branch);
     }
 
     private void createDir() {
@@ -135,46 +132,46 @@ public class Repository {
         initial.updateCommit("initial commit", null, null, new Date(0), whereHeadIs);
         initial.saveCommit();
         whereHeadIs = MAIN;
-        Utils.writeContents(WHEREHEADIS, whereHeadIs);
+        writeContents(WHEREHEADIS, whereHeadIs);
         forwordHEAD(initial);
     }
 
     public void add(String fileName) {
         TreeMap<String, String> store;
         if (ADDITION.exists()) {
-            store = Utils.readObject(ADDITION, TreeMap.class);
+            store = readObject(ADDITION, TreeMap.class);
         } else {
             store = new TreeMap<>();
         }
-        File file = Utils.join(CWD, fileName);
+        File file = join(CWD, fileName);
         if (!file.exists()) {
             System.out.println("File does not exist.");
             System.exit(0);
         }
         String sha1 = sha1(readContents(file));
-        Commit parent = Utils.readObject(getPath(COMMITS_DIR, HEAD), Commit.class);
+        Commit parent = readObject(getPath(COMMITS_DIR, HEAD), Commit.class);
         if (parent.isTracked(fileName, sha1) && parent.getBlobHash(fileName).equals(sha1)) {
             if (store.containsKey(fileName)) {
                 store.remove(fileName);
-                Utils.writeObject(ADDITION, store);
+                writeObject(ADDITION, store);
             }
             return;
         }
         if (REMOVAL.exists()) {
-            Set<String> removal = Utils.readObject(REMOVAL, TreeSet.class);
+            Set<String> removal = readObject(REMOVAL, TreeSet.class);
             if (removal.contains(fileName)) {
                 removal.remove(fileName);
-                Utils.writeObject(REMOVAL, (Serializable) removal);
+                writeObject(REMOVAL, (Serializable) removal);
                 System.exit(0);
             }
         }
         File blobFile = getPath(BLOBS_DIR, sha1);
         if (!blobFile.exists()) {
             blobFile.getParentFile().mkdir();
-            Utils.writeContents(blobFile, readContents(file));
+            writeContents(blobFile, readContents(file));
         }
         store.put(fileName, sha1);
-        Utils.writeObject(ADDITION, store);
+        writeObject(ADDITION, store);
     }
 
     public void commit(String... messages) {
@@ -184,16 +181,16 @@ public class Repository {
         }
         String message = messages[0];
         File parent = getPath(COMMITS_DIR, HEAD);
-        Commit newCommit = Utils.readObject(parent, Commit.class);
+        Commit newCommit = readObject(parent, Commit.class);
         newCommit.updateCommit(message, HEAD, mother, new Date(), whereHeadIs);
         if (ADDITION.exists()) {
-            TreeMap<String, String> store = Utils.readObject(ADDITION, TreeMap.class);
+            TreeMap<String, String> store = readObject(ADDITION, TreeMap.class);
             for (String fileName : store.keySet()) {
                 newCommit.put(fileName, store.get(fileName));
             }
             ADDITION.delete();
         } else if (REMOVAL.exists()) {
-            Set<String> removal = Utils.readObject(REMOVAL, TreeSet.class);
+            Set<String> removal = readObject(REMOVAL, TreeSet.class);
             for (String fileName : removal) {
                 newCommit.remove(fileName);
             }
@@ -208,9 +205,9 @@ public class Repository {
 
     public void rm(String fileName) {
         boolean sign = false;
-        File currentFile = Utils.join(CWD, fileName);
+        File currentFile = join(CWD, fileName);
         if (ADDITION.exists()) {
-            TreeMap<String, String> store = Utils.readObject(ADDITION, TreeMap.class);
+            TreeMap<String, String> store = readObject(ADDITION, TreeMap.class);
             Iterator<String> iterator = store.keySet().iterator();
             while (iterator.hasNext()) {
                 String key = iterator.next();
@@ -220,7 +217,7 @@ public class Repository {
                 }
             }
             if (sign) {
-                Utils.writeObject(ADDITION, store);
+                writeObject(ADDITION, store);
             }
         }
         Commit headCommit = Commit.getCommitFromFile(HEAD);
@@ -228,12 +225,12 @@ public class Repository {
             sign = true;
             Set<String> removal;
             if (REMOVAL.exists()) {
-                removal = Utils.readObject(REMOVAL, TreeSet.class);
+                removal = readObject(REMOVAL, TreeSet.class);
             } else {
                 removal = new TreeSet<>();
             }
             removal.add(fileName);
-            Utils.writeObject(REMOVAL, (Serializable) removal);
+            writeObject(REMOVAL, (Serializable) removal);
             if (currentFile.exists()) {
                 currentFile.delete();
             }
@@ -248,7 +245,7 @@ public class Repository {
         String pointer = HEAD;
         while (pointer != null) {
             File pathOfCurrentCommit = getPath(COMMITS_DIR, pointer);
-            Commit currentCommit = Utils.readObject(pathOfCurrentCommit, Commit.class);
+            Commit currentCommit = readObject(pathOfCurrentCommit, Commit.class);
             System.out.print(printSignalLog(currentCommit, pointer));
             pointer = currentCommit.getFather();
         }
@@ -258,12 +255,12 @@ public class Repository {
         if (!GLOBALLOG.exists()) {
             System.exit(0);
         }
-        StringBuffer logMessage = Utils.readObject(GLOBALLOG, StringBuffer.class);
+        StringBuffer logMessage = readObject(GLOBALLOG, StringBuffer.class);
         System.out.print(logMessage);
     }
 
     public void find(String message) {
-        TreeMap<String, String> find = Utils.readObject(FIND, TreeMap.class);
+        TreeMap<String, String> find = readObject(FIND, TreeMap.class);
         for (String key : find.keySet()) {
             if (key.equals(message)) {
                 System.out.println(find.get(key));
@@ -276,7 +273,7 @@ public class Repository {
 
     public void status() {
         System.out.println("=== Branches ===");
-        TreeMap<String, String> branchName = Utils.readObject(BRANCH, TreeMap.class);
+        TreeMap<String, String> branchName = readObject(BRANCH, TreeMap.class);
         for (String name : branchName.keySet()) {
             if (name.equals(whereHeadIs)) {
                 System.out.println("*" + name);
@@ -287,7 +284,7 @@ public class Repository {
         System.out.println();
         System.out.println("=== Staged Files ===");
         if (ADDITION.exists()) {
-            TreeMap<String, String> store = Utils.readObject(ADDITION, TreeMap.class);
+            TreeMap<String, String> store = readObject(ADDITION, TreeMap.class);
             for (String fileName : store.keySet()) {
                 System.out.println(fileName);
             }
@@ -295,7 +292,7 @@ public class Repository {
         System.out.println();
         System.out.println("=== Removed Files ===");
         if (REMOVAL.exists()) {
-            Set<String> removal = Utils.readObject(REMOVAL, TreeSet.class);
+            Set<String> removal = readObject(REMOVAL, TreeSet.class);
             for (String fileName : removal) {
                 System.out.println(fileName);
             }
@@ -308,7 +305,7 @@ public class Repository {
                 continue;
             }
             if (truelyCheckTracked(file.getName())) {
-                String sha1 = sha1(Utils.readContents(file));
+                String sha1 = sha1(readContents(file));
                 if (isModified(file.getName(), sha1)) {
                     System.out.println(file.getName() + " (modified)");
                 }
@@ -330,7 +327,7 @@ public class Repository {
 
     public String getFullId(String id) {
         int len = id.length();
-        Set<String> fullid = Utils.readObject(GETFULLID, TreeSet.class);
+        Set<String> fullid = readObject(GETFULLID, TreeSet.class);
         for (String key : fullid) {
             if (key.substring(0, len).equals(id)) {
                 return key;
@@ -359,7 +356,7 @@ public class Repository {
             System.exit(0);
         }
         File blobFile = getPath(BLOBS_DIR, sha1);
-        Utils.writeContents(Utils.join(CWD, filename), Utils.readContents(blobFile));
+        writeContents(join(CWD, filename), readContents(blobFile));
     }
 
     public void checkoutWithBranchName(String branchName) {
@@ -380,10 +377,16 @@ public class Repository {
             System.exit(0);
         }
         branch.put(branchName, HEAD);
-        Utils.writeObject(BRANCH, branch);
+        writeObject(BRANCH, branch);
+        HashMap<Pair<String, String>, String> splitPointMap;
+        if (SPLITPOINT.exists()) {
+            splitPointMap = readObject(SPLITPOINT, HashMap.class);
+        } else {
+            splitPointMap = new HashMap<>();
+        }
         Pair<String, String> pair = new Pair<>(branchName, whereHeadIs);
-        setSplitPoint(whereHeadIs, branchName, HEAD);
-        saveSplitPoint();
+        splitPointMap.put(pair, HEAD);
+        writeObject(SPLITPOINT, splitPointMap);
     }
 
     public void rmBranch(String branchName) {
@@ -396,7 +399,7 @@ public class Repository {
             System.exit(0);
         }
         branch.remove(branchName);
-        Utils.writeObject(BRANCH, branch);
+        writeObject(BRANCH, branch);
     }
 
     public void reset(String commitId) {
@@ -445,38 +448,38 @@ public class Repository {
         }
         Commit headCommitOfCurrentBranch = Commit.getCommitFromFile(HEAD);
         for (String key : headCommitOfCurrentBranch.getTrackedBlobs().keySet()) {
-            File notTrackedInCheckedOutBranch = Utils.join(CWD, key);
+            File notTrackedInCheckedOutBranch = join(CWD, key);
             notTrackedInCheckedOutBranch.delete();
         }
         Commit headCommitOfGivenBranch = Commit.getCommitFromFile(commitId);
         for (String key : headCommitOfGivenBranch.getTrackedBlobs().keySet()) {
             File blobFile = getPath(BLOBS_DIR, headCommitOfGivenBranch.getBlobHash(key));
-            Utils.writeContents(Utils.join(CWD, key), Utils.readContents(blobFile));
+            writeContents(join(CWD, key), readContents(blobFile));
         }
         HEAD = commitId;
-        Utils.writeContents(HEAD_FILE, HEAD);
+        writeContents(HEAD_FILE, HEAD);
         if (whereCurrentHeadIs == null) {
             whereHeadIs = headCommitOfGivenBranch.getBranch();
         } else {
             whereHeadIs = whereCurrentHeadIs;
         }
-        Utils.writeContents(WHEREHEADIS, whereHeadIs);
+        writeContents(WHEREHEADIS, whereHeadIs);
         branch.put(whereHeadIs, HEAD);
-        Utils.writeObject(BRANCH, branch);
+        writeObject(BRANCH, branch);
     }
 
     public void merge(String branchName) {
         boolean sign = false;
         boolean signDoChange = false;
         if (ADDITION.exists()) {
-            TreeMap<String, String> store = Utils.readObject(ADDITION, TreeMap.class);
+            TreeMap<String, String> store = readObject(ADDITION, TreeMap.class);
             if (!store.isEmpty()) {
                 System.out.println("You have uncommitted changes.");
                 System.exit(0);
             }
         }
         if (REMOVAL.exists()) {
-            Set<String> removal = Utils.readObject(REMOVAL, TreeSet.class);
+            Set<String> removal = readObject(REMOVAL, TreeSet.class);
             if (!removal.isEmpty()) {
                 System.out.println("You have uncommitted changes.");
                 System.exit(0);
@@ -491,7 +494,8 @@ public class Repository {
             System.exit(0);
         }
         checkAnUntrackedFileInTheWay(branch.get(branchName));
-        String splitPoint = getSplitPoint(whereHeadIs, branchName);
+        HashMap<Pair<String, String>, String> splitPointMap = readObject(SPLITPOINT, HashMap.class);
+        String splitPoint = splitPointMap.get(new Pair<>(branchName, whereHeadIs));
         Commit headCommit = Commit.getCommitFromFile(HEAD);
         String shaGivenCommit = branch.get(branchName);
         Commit givenCommit = Commit.getCommitFromFile(shaGivenCommit);
@@ -535,7 +539,7 @@ public class Repository {
                 continue;
             }
             signDoChange = true;
-            changeFile(key, shaGivenCommit, newCreatedFile, headCommit, givenCommit);
+            changeFile(key, headCommit, givenCommit);
             sign = true;
         }
         for (String key : headCommit.getTrackedBlobs().keySet()) {
@@ -549,7 +553,8 @@ public class Repository {
                 }
                 signDoChange = true;
                 sign = true;
-                changeFile(key, shaGivenCommit, newCreatedFile, headCommit, givenCommit);
+                newCreatedFile.add(key);
+                changeFile(key, headCommit, givenCommit);
             }
         }
         for (String key : givenCommit.getTrackedBlobs().keySet()) {
@@ -561,34 +566,33 @@ public class Repository {
             }
         }
         if (signDoChange) {
-            commit("Merged " + whereHeadIs + " into " + branchName + ".", shaGivenCommit);
+            commit("Merged " + branchName + " into " + whereHeadIs + ".", shaGivenCommit);
         }
         if (sign) {
             System.out.println("Encountered a merge conflict.");
         }
     }
 
-    private void changeFile(String key, String shaGivenCommit, Set<String> newCreatedFile,
-                            Commit headCommit, Commit givenCommit) {
-        StringBuffer content = new StringBuffer();
-        content.append("<<<<<<< HEAD\n");
+    private void changeFile(String key, Commit headCommit, Commit givenCommit) {
+        String content = "";
+        content += "<<<<<<< HEAD\n";
         File file1 = getPath(BLOBS_DIR, headCommit.getBlobHash(key));
         if (file1.exists()) {
-            content.append(Utils.readContentsAsString(file1));
+            content += readContentsAsString(file1);
         }
-        content.append("=======\n");
+        content += "=======\n";
         File file2 = getPath(BLOBS_DIR, givenCommit.getBlobHash(key));
         if (file2.exists()) {
-            content.append(Utils.readContentsAsString(file2));
+            content += readContentsAsString(file2);
         }
-        content.append(">>>>>>>\n");
-        Utils.writeContents(Utils.join(CWD, key), content.toString());
+        content += ">>>>>>>\n";
+        writeContents(join(CWD, key), content);
         add(key);
     }
 
     private boolean truelyCheckTracked(String fileName) {
         if (ADDITION.exists()) {
-            TreeMap<String, String> store = Utils.readObject(ADDITION, TreeMap.class);
+            TreeMap<String, String> store = readObject(ADDITION, TreeMap.class);
             for (String key : store.keySet()) {
                 if (store.containsKey(fileName)) {
                     return true;
@@ -601,7 +605,7 @@ public class Repository {
 
     private boolean isModified(String fileName, String sha1) {
         if (ADDITION.exists()) {
-            TreeMap<String, String> store = Utils.readObject(ADDITION, TreeMap.class);
+            TreeMap<String, String> store = readObject(ADDITION, TreeMap.class);
             if (store.containsKey(fileName)) {
                 return !store.get(fileName).equals(sha1);
             }
@@ -613,12 +617,12 @@ public class Repository {
     private void deletedFile() {
         Set<String> f = new HashSet<>();
         if (ADDITION.exists()) {
-            TreeMap<String, String> store = Utils.readObject(ADDITION, TreeMap.class);
+            TreeMap<String, String> store = readObject(ADDITION, TreeMap.class);
             for (String key : store.keySet()) {
                 if (isRemoved(key)) {
                     continue;
                 }
-                File addedFile = Utils.join(CWD, key);
+                File addedFile = join(CWD, key);
                 if (!addedFile.exists()) {
                     System.out.println(key + " (deleted)");
                     f.add(key);
@@ -630,7 +634,7 @@ public class Repository {
             if (f.contains(key) || isRemoved(key)) {
                 continue;
             }
-            File trackedFile = Utils.join(CWD, key);
+            File trackedFile = join(CWD, key);
             if (!trackedFile.exists()) {
                 System.out.println(key + " (deleted)");
             }
@@ -639,24 +643,9 @@ public class Repository {
 
     private boolean isRemoved(String fileName) {
         if (REMOVAL.exists()) {
-            Set<String> removal = Utils.readObject(REMOVAL, TreeSet.class);
+            Set<String> removal = readObject(REMOVAL, TreeSet.class);
             return removal.contains(fileName);
         }
         return false;
     }
-
-    public void setSplitPoint(String branchName1, String branchName2, String ash1) {
-        Pair<String, String> branchPair = new Pair<>(branchName1, branchName2);
-        splitPointMap.put(branchPair, ash1);
-    }
-
-    public String getSplitPoint(String branchName1, String branchName2) {
-        Pair<String, String> branchPair = new Pair<>(branchName1, branchName2);
-        return splitPointMap.get(branchPair);
-    }
-
-    public void saveSplitPoint() {
-        Utils.writeObject(splitPoint, splitPointMap);
-    }
-
 }
