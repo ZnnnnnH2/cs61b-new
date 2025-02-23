@@ -705,16 +705,7 @@ public class Repository {
     }
 
     public void push(String remoteName, String remoteBranchName) {
-        if (!REMOTE.exists()) {
-            System.out.println("Remote directory not found.");
-            System.exit(0);
-        }
-        TreeMap<String, File> remote = readObject(REMOTE, TreeMap.class);
-        if (!remote.containsKey(remoteName)) {
-            System.out.println("Remote directory not found.");
-            System.exit(0);
-        }
-        File remoteDir = remote.get(remoteName);
+        File remoteDir = notFoundRemoteDir(remoteName);
         File remoteHead = join(remoteDir, "HEAD");
         File remoteBranch = join(remoteDir, "branch");
         if (!remoteHead.exists() || !remoteBranch.exists()) {
@@ -729,15 +720,16 @@ public class Repository {
             System.exit(0);
         }
         String remoteBranchCommit = remoteBranches.get(remoteBranchName);
-        if(!isInhistory(remoteBranchCommit, HEAD)) {
+        if (!isInhistory(remoteBranchCommit, HEAD)) {
             System.out.println("Please pull down remote changes before pushing.");
             System.exit(0);
         }
         File remoteCommitPath = join(remoteDir, "commits");
         File remoteBlobPath = join(remoteDir, "blobs");
-        moveToRemote(HEAD, remoteCommitPath, remoteBlobPath);
+        moveToRemote(HEAD, remoteCommitPath, remoteBlobPath, remoteDir);
         remoteBranches.put(remoteBranchName, HEAD);
         writeObject(remoteBranch, remoteBranches);
+        writeContents(remoteHead, HEAD);
     }
 
     private boolean isInhistory(String remoteCommitSha1, String localCommitSha1) {
@@ -748,10 +740,12 @@ public class Repository {
             return true;
         }
         Commit localCommit = readObject(getPath(COMMITS_DIR, localCommitSha1), Commit.class);
-        return isInhistory(remoteCommitSha1, localCommit.getFather()) || isInhistory(remoteCommitSha1, localCommit.getMather());
+        return isInhistory(remoteCommitSha1, localCommit.getFather())
+                || isInhistory(remoteCommitSha1, localCommit.getMather());
     }
 
-    private void moveToRemote(String localCommitsha1, File remoteCommitPath, File remoteBlobPath) {
+    private void moveToRemote(String localCommitsha1, File remoteCommitPath,
+                              File remoteBlobPath, File remoteGitLatPath) {
         if (localCommitsha1 == null) {
             return;
         }
@@ -759,26 +753,30 @@ public class Repository {
         Commit localCommit = readObject(localCommitFile, Commit.class);
         File commitFileInRemote = getPath(remoteCommitPath, sha1((Object) serialize(localCommit)));
         if (!commitFileInRemote.exists()) {
-            writeObject(commitFileInRemote, localCommit);
-            for (String key : localCommit.getTrackedBlobs().keySet()) {
-                File localblobFile = getPath(BLOBS_DIR, localCommit.getBlobHash(key));
-                File blobFileInRemote = getPath(remoteBlobPath, localCommit.getBlobHash(key));
-                if (!blobFileInRemote.exists()) {
-                    writeContents(blobFileInRemote, readContents(localblobFile));
-                }
+            File remotedGetFullId = join(remoteGitLatPath, "getfullid");
+            moveTo(remoteBlobPath, localCommit, commitFileInRemote, remotedGetFullId, BLOBS_DIR);
+        }
+        moveToRemote(localCommit.getFather(), remoteCommitPath, remoteBlobPath, remoteGitLatPath);
+        moveToRemote(localCommit.getMather(), remoteCommitPath, remoteBlobPath, remoteGitLatPath);
+    }
+
+    private void moveTo(File remoteBlobPath, Commit localCommit, File commitFileInRemote,
+                        File remotedGetFullId, File blobsDir) {
+        Set<String> fullid = readObject(remotedGetFullId, TreeSet.class);
+        fullid.add(sha1((Object) serialize(localCommit)));
+        writeObject(remotedGetFullId, (Serializable) fullid);
+        writeObject(commitFileInRemote, localCommit);
+        for (String key : localCommit.getTrackedBlobs().keySet()) {
+            File localblobFile = getPath(blobsDir, localCommit.getBlobHash(key));
+            File blobFileInRemote = getPath(remoteBlobPath, localCommit.getBlobHash(key));
+            if (!blobFileInRemote.exists()) {
+                writeContents(blobFileInRemote, readContents(localblobFile));
             }
         }
-        moveToRemote(localCommit.getFather(), remoteCommitPath, remoteBlobPath);
-        moveToRemote(localCommit.getMather(), remoteCommitPath, remoteBlobPath);
     }
 
     public void fetch(String remoteName, String remoteBranchName) {
-        TreeMap<String, File> remote = readObject(REMOTE, TreeMap.class);
-        if (!remote.containsKey(remoteName)) {
-            System.out.println("Remote directory not found.");
-            System.exit(0);
-        }
-        File remoteDir = remote.get(remoteName);
+        File remoteDir = notFoundRemoteDir(remoteName);
         File branches = join(remoteDir, "branch");
         if (!branches.exists()) {
             System.out.println("That remote does not have that branch.");
@@ -795,11 +793,27 @@ public class Repository {
         File remoteCurrentCommitPath = getPath(remoteCommitPath, remoteBranchCommitSha1);
         Commit remoteCommit = readObject(remoteCurrentCommitPath, Commit.class);
         String newBranchName = remoteName + "/" + remoteBranchName;
-        if (!branch.containsKey(newBranchName)) {
-            branch.put(newBranchName, remoteBranchCommitSha1);
-            writeObject(BRANCH, branch);
-        }
+        branch.put(newBranchName, remoteBranchCommitSha1);
+        writeObject(BRANCH, branch);
         moveToLocal(remoteBranchCommitSha1, remoteCommitPath, remoteBlobPath);
+    }
+
+    private File notFoundRemoteDir(String remoteName) {
+        if (!REMOTE.exists()) {
+            System.out.println("Remote directory not found.");
+            System.exit(0);
+        }
+        TreeMap<String, File> remote = readObject(REMOTE, TreeMap.class);
+        if (!remote.containsKey(remoteName)) {
+            System.out.println("Remote directory not found.");
+            System.exit(0);
+        }
+        File remoteDir = remote.get(remoteName);
+        if(!remoteDir.exists()) {
+            System.out.println("Remote directory not found.");
+            System.exit(0);
+        }
+        return remoteDir;
     }
 
     private void moveToLocal(String remoteCommitsha1, File remoteCommitPath, File remoteBlobPath) {
@@ -810,14 +824,7 @@ public class Repository {
         Commit remoteCommit = readObject(remoteCommitFile, Commit.class);
         File commitFileInLocal = getPath(COMMITS_DIR, sha1((Object) serialize(remoteCommit)));
         if (!commitFileInLocal.exists()) {
-            writeObject(commitFileInLocal, remoteCommit);
-            for (String key : remoteCommit.getTrackedBlobs().keySet()) {
-                File remoteblobFile = getPath(remoteBlobPath, remoteCommit.getBlobHash(key));
-                File blobFileInLocal = getPath(BLOBS_DIR, remoteCommit.getBlobHash(key));
-                if (!blobFileInLocal.exists()) {
-                    writeContents(blobFileInLocal, readContents(remoteblobFile));
-                }
-            }
+            moveTo(BLOBS_DIR, remoteCommit, commitFileInLocal, GETFULLID, remoteBlobPath);
         }
         moveToLocal(remoteCommit.getFather(), remoteCommitPath, remoteBlobPath);
         moveToLocal(remoteCommit.getMather(), remoteCommitPath, remoteBlobPath);
