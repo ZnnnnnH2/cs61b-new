@@ -809,7 +809,7 @@ public class Repository {
             System.exit(0);
         }
         File remoteDir = remote.get(remoteName);
-        if(!remoteDir.exists()) {
+        if (!remoteDir.exists()) {
             System.out.println("Remote directory not found.");
             System.exit(0);
         }
