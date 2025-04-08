@@ -17,6 +17,12 @@ public class Engine {
     private static final double exp = 1e-6;
     TERenderer ter = new TERenderer();
     List<Tuple> roomList = new ArrayList<>();
+    private Tuple userPosition;
+    private RandomNumberHelper RANDOM;
+    private TETile[][] finalWorldFrame;
+    private int munberOfFlawer;
+    private String inputString;
+    Input keyboard;
 
     /**
      * Method used for exploring a fresh world. This method should handle all inputs,
@@ -54,6 +60,8 @@ public class Engine {
      * @param input the input string to feed to your program
      * @return the 2D TETile[][] representing the state of the world
      */
+
+
     public TETile[][] interactWithInputString(String input) {
         // TODO: Fill out this method so that it run the engine using the input
         // passed in as an argument, and return a 2D tile representation of the
@@ -64,35 +72,132 @@ public class Engine {
         // that works for many different input types.
 
         //initialize the ter
-        long seed = Long.parseLong(input.substring(1, input.length() - 1));
-        RandomNumberHelper RANDOM = new RandomNumberHelper(seed);
-        TETile[][] finalWorldFrame = new TETile[WIDTH][HEIGHT];
-//        ter.initialize(WIDTH, HEIGHT);
-        fillEmptyTiles(finalWorldFrame);
+        if(input.charAt(0) == 'N') {
+            initialize(input.substring(1));
+        }
+        else if(input.charAt(0) == 'L') {
+            loadHistory();
+        }
         //generate the room
+        generateRoomList();
+        //generate the hallway
+        generateHallways();
+        //interaction
+        display();
+        interact();
+        //final operation
+
+        return finalWorldFrame;
+    }
+    private long getSeed(String str){
+        long seed = 0;
+        int len = str.length();
+        int i = 0;
+        for(; i < len; i++){
+            if('0' <= str.charAt(i) && str.charAt(i) <= '9'){
+                seed = seed * 10 + (str.charAt(i) - '0');
+            }
+            else{
+                break;
+            }
+        }
+        inputString = str.substring(i);
+        return seed;
+    }
+    private void initialize(String input) {
+        long seed = getSeed(input);
+        ter.initialize(WIDTH, HEIGHT);
+        RANDOM = new RandomNumberHelper(seed);
+        finalWorldFrame = new TETile[WIDTH][HEIGHT];
+        fillEmptyTiles(finalWorldFrame);
+        keyboard = new StringInput(inputString);
+    }
+    private void loadHistory() {
+
+    }
+    private void generateRoomList() {
         double coverRate = 0.0;
         int totCover = 0;
         while (COVERRATE - coverRate > exp) {
-            int cover = generateRoom(RANDOM, finalWorldFrame);
+            int cover = generateRoom();
             totCover += cover;
             coverRate = (double) totCover / (WIDTH * HEIGHT);
         }
-        //generate the hallway
         roomList.sort(Tuple::compareTo);
-        generateHallways(RANDOM, finalWorldFrame);
-        //final operation
-//        ter.renderFrame(finalWorldFrame);
-        return finalWorldFrame;
+        munberOfFlawer = roomList.size();
+    }
+    private void display(){
+        ter.renderFrame(finalWorldFrame);
+    }
+    private void interact() {
+        userPosition = new Tuple(roomList.get(0).getFirst(), roomList.get(0).getSecond());
+        finalWorldFrame[userPosition.getFirst()][userPosition.getSecond()] = Tileset.AVATAR;
+        display();
+        munberOfFlawer--;
+        while (keyboard.possibleNextInput()) {
+            char c = keyboard.getNextKey();
+            boolean quitFlag = false;
+            finalWorldFrame[userPosition.getFirst()][userPosition.getSecond()] = Tileset.FLOOR;
+            if (c == 'W' || c == 'w') {
+                quitFlag = move(0, 1);
+            } else if (c == 'S' || c == 's') {
+                quitFlag = move(0, -1);
+            } else if (c == 'A' || c == 'a') {
+                quitFlag = move(-1,0);
+            } else if (c == 'D' || c == 'd') {
+                quitFlag = move(1,0);
+            } else if (c == ':') {
+                char q = keyboard.getNextKey();
+                if (q == 'Q' || q == 'q') {
+                    userQuit();
+                    quitFlag = true;
+                }
+            }
+            if(quitFlag) {
+                break;
+            }
+        }
+    }
+    private boolean move(int x, int y) {
+        int px = userPosition.getFirst() + x;
+        int py = userPosition.getSecond() + y;
+        if (px < 0 || px >= WIDTH || py < 0 || py >= HEIGHT) {
+            return false;
+        }
+        if (finalWorldFrame[px][py] == Tileset.NOTHING || finalWorldFrame[px][py] == Tileset.WALL) {
+            return false;
+        }
+        if (finalWorldFrame[px][py] == Tileset.FLOWER) {
+            munberOfFlawer--;
+            if (munberOfFlawer == 0) {
+                System.out.println("You win!");
+                winnerQuit();
+                return true;
+            }
+        }
+        finalWorldFrame[px][py] = Tileset.AVATAR;
+        finalWorldFrame[userPosition.getFirst()][userPosition.getSecond()] = Tileset.FLOOR;
+        userPosition = new Tuple(px, py);
+        display();
+        return false;
     }
 
-    private void generateHallways(RandomNumberHelper RANDOM, TETile[][] worldFrame) {
+    private void winnerQuit() {
+
+    }
+
+    private void userQuit(){
+
+    }
+
+    private void generateHallways() {
         int len = roomList.size();
         for (int i = 0; i < len - 1; i++) {
-            generateSignalHallways(RANDOM, worldFrame, roomList.get(i), roomList.get(i + 1));
+            generateSignalHallways(roomList.get(i), roomList.get(i + 1));
         }
     }
 
-    private void generateSignalHallways(RandomNumberHelper RANDOM, TETile[][] worldFrame, Tuple a, Tuple b) {
+    private void generateSignalHallways(Tuple a, Tuple b) {
         int x1 = a.getFirst();
         int x2 = b.getFirst();
         int y1 = a.getSecond();
@@ -100,38 +205,40 @@ public class Engine {
         int width = RANDOM.nextInt(2) + 1;
         if (y1 <= y2) {
             for (int i = x1; i <= x2; i++) {
-                wallBuildHelper(i, y1 - 1, worldFrame);
-                wallBuildHelper(i, y1 + width, worldFrame);
+                wallBuildHelper(i, y1 - 1);
+                wallBuildHelper(i, y1 + width);
                 for (int j = 0; j < width; j++) {
-                    worldFrame[i][y1 + j] = Tileset.FLOOR;
+                    floorBulidHelper(i, y1 + j);
                 }
             }
             for (int i = y1 + width - 1; i <= y2; i++) {
-                wallBuildHelper(x2 + 1, i, worldFrame);
-                wallBuildHelper(x2 - width, i, worldFrame);
+                wallBuildHelper(x2 + 1, i);
+                wallBuildHelper(x2 - width, i);
                 for (int j = 0; j < width; j++) {
-                    worldFrame[x2 - j][i] = Tileset.FLOOR;
+                    floorBulidHelper(x2 - j, i);
                 }
             }
         } else {
             for (int i = x1; i <= x2; i++) {
-                wallBuildHelper(i, y1 - 1, worldFrame);
-                wallBuildHelper(i, y1 + width, worldFrame);
+                wallBuildHelper(i, y1 - 1);
+                wallBuildHelper(i, y1 + width);
                 for (int j = 0; j < width; j++) {
-                    worldFrame[i][y1 + j] = Tileset.FLOOR;
+//                    worldFrame[i][y1 + j] = Tileset.FLOOR;
+                    floorBulidHelper(i, y1 + j);
                 }
             }
             for (int i = y2; i <= y1 + width - 1; i++) {
-                wallBuildHelper(x2 + 1, i, worldFrame);
-                wallBuildHelper(x2 - width, i, worldFrame);
+                wallBuildHelper(x2 + 1, i);
+                wallBuildHelper(x2 - width, i);
                 for (int j = 0; j < width; j++) {
-                    worldFrame[x2 - j][i] = Tileset.FLOOR;
+//                    worldFrame[x2 - j][i] = Tileset.FLOOR;
+                    floorBulidHelper(x2 - j, i);
                 }
             }
         }
     }
 
-    private void wallBuildHelper(int x, int y, TETile[][] finalWorldFrame) {
+    private void wallBuildHelper(int x, int y) {
         if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT) {
             return;
         }
@@ -140,7 +247,16 @@ public class Engine {
         }
     }
 
-    private int generateRoom(RandomNumberHelper RANDOM, TETile[][] finalWorldFrame) {
+    private void floorBulidHelper(int x, int y) {
+        if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT) {
+            return;
+        }
+        if (finalWorldFrame[x][y] != Tileset.FLOWER) {
+            finalWorldFrame[x][y] = Tileset.FLOOR;
+        }
+    }
+
+    private int generateRoom() {
         int x1 = RANDOM.nextInt(WIDTH - 2);
         int y1 = RANDOM.nextInt(HEIGHT - 2);
         int width = RANDOM.nextInt(10) + 2;
@@ -148,20 +264,21 @@ public class Engine {
         int x2 = min(WIDTH - 1, x1 + width);
         int y2 = min(HEIGHT - 1, y1 + height);
         for (int i = x1; i <= x2; i++) {
-            wallBuildHelper(i, y1, finalWorldFrame);
-            wallBuildHelper(i, y2, finalWorldFrame);
+            wallBuildHelper(i, y1);
+            wallBuildHelper(i, y2);
         }
         for (int j = y1; j <= y2; j++) {
-            wallBuildHelper(x1, j, finalWorldFrame);
-            wallBuildHelper(x2, j, finalWorldFrame);
+            wallBuildHelper(x1, j);
+            wallBuildHelper(x2, j);
         }
         for (int i = x1 + 1; i < x2; i++) {
             for (int j = y1 + 1; j < y2; j++) {
-                finalWorldFrame[i][j] = Tileset.FLOOR;
+                floorBulidHelper(i, j);
             }
         }
         int midX = (x1 + x2) / 2;
         int midY = (y1 + y2) / 2;
+        finalWorldFrame[midX][midY] = Tileset.FLOWER;
         roomList.add(new Tuple(midX, midY));
         return (width * height);
     }
