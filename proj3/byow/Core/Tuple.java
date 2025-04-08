@@ -1,10 +1,10 @@
 package byow.Core;
 
-import java.io.Serializable;
+import java.io.*;
 
 public class Tuple implements Comparable<Tuple>, Serializable {
-    private int first;
-    private int second;
+    public int first;
+    public int second;
 
     public Tuple(int first, int second) {
         this.first = first;
@@ -54,5 +54,17 @@ public class Tuple implements Comparable<Tuple>, Serializable {
     @Override
     public int compareTo(Tuple o) {
         return this.first == o.first ? this.second - o.second : this.first - o.first;
+    }
+
+    public Tuple deepCopy() throws IOException, ClassNotFoundException {
+        // 利用序列化实现深拷贝
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ObjectOutputStream oos = new ObjectOutputStream(baos);
+        oos.writeObject(this);
+        oos.close();
+
+        ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
+        ObjectInputStream ois = new ObjectInputStream(bais);
+        return (Tuple) ois.readObject();
     }
 }

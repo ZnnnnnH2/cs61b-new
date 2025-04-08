@@ -5,6 +5,7 @@ import byow.TileEngine.TETile;
 import byow.TileEngine.Tileset;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -66,7 +67,7 @@ public class Engine {
      */
 
 
-    public TETile[][] interactWithInputString(String input) {
+    public TETile[][] interactWithInputString(String input) throws IOException, ClassNotFoundException {
         // TODO: Fill out this method so that it run the engine using the input
         // passed in as an argument, and return a 2D tile representation of the
         // world that would have been drawn if the same inputs had been given
@@ -119,13 +120,17 @@ public class Engine {
         userPosition = new Tuple(roomList.get(0).getFirst(), roomList.get(0).getSecond());
     }
 
-    private void loadHistory(String input) {
+    private void loadHistory(String input) throws IOException, ClassNotFoundException {
         History history = Utils.readObject(saving, History.class);
 //        ter.initialize(WIDTH, HEIGHT);
-        finalWorldFrame = history.finalWorldFrame;
-        RANDOM = history.RANDOM;
+//        finalWorldFrame = history.finalWorldFrame;
+        finalWorldFrame = new TETile[WIDTH][HEIGHT];
+        for (int i = 0; i < finalWorldFrame.length; i++) {
+            System.arraycopy(history.finalWorldFrame[i], 0, finalWorldFrame[i], 0, finalWorldFrame[0].length);
+        }
+        RANDOM = history.RANDOM.deepCopy();
         keyboard = new StringInput(input);
-        userPosition = history.userPosition;
+        userPosition = history.userPosition.deepCopy();
         munberOfFlawer = history.munberOfFlawer;
     }
 
@@ -145,7 +150,7 @@ public class Engine {
 //        ter.renderFrame(finalWorldFrame);
     }
 
-    private void interact() {
+    private void interact() throws IOException, ClassNotFoundException {
         finalWorldFrame[userPosition.getFirst()][userPosition.getSecond()] = Tileset.AVATAR;
         display();
         munberOfFlawer--;
@@ -205,7 +210,7 @@ public class Engine {
 //        System.out.println("You Win!");
     }
 
-    private void savingQuit() {
+    private void savingQuit() throws IOException, ClassNotFoundException {
         History history = new History(finalWorldFrame, munberOfFlawer, RANDOM, userPosition);
         Utils.writeObject(saving, history);
     }
