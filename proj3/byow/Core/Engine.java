@@ -5,7 +5,6 @@ import byow.TileEngine.TETile;
 import byow.TileEngine.Tileset;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,8 +17,8 @@ public class Engine {
     public static final int HEIGHT = 40;
     public static final File CWD = new File(System.getProperty("user.dir"));
     private static final double COVERRATE = 0.4;
-    private static final double exp = 1e-6;
-    private static final File saving = join(CWD, "saving.txt");
+    private static final double EXP = 1e-6;
+    private static final File SAVING = join(CWD, "saving.txt");
     TERenderer ter = new TERenderer();
     List<Tuple> roomList = new ArrayList<>();
     Input keyboard;
@@ -67,8 +66,7 @@ public class Engine {
      */
 
 
-    public TETile[][] interactWithInputString(String input){
-        // TODO: Fill out this method so that it run the engine using the input
+    public TETile[][] interactWithInputString(String input) {
         // passed in as an argument, and return a 2D tile representation of the
         // world that would have been drawn if the same inputs had been given
         // to interactWithKeyboard().
@@ -120,25 +118,24 @@ public class Engine {
         userPosition = new Tuple(roomList.get(0).getFirst(), roomList.get(0).getSecond());
     }
 
-    private void loadHistory(String input){
-        History history = Utils.readObject(saving, History.class);
-//        ter.initialize(WIDTH, HEIGHT);
-//        finalWorldFrame = history.finalWorldFrame;
+    private void loadHistory(String input) {
+        History history = Utils.readObject(SAVING, History.class);
         finalWorldFrame = new TETile[WIDTH][HEIGHT];
         for (int i = 0; i < finalWorldFrame.length; i++) {
-            System.arraycopy(history.finalWorldFrame[i], 0, finalWorldFrame[i], 0, finalWorldFrame[0].length);
+            System.arraycopy(history.getFinalWorldFrame()[i], 0,
+                    finalWorldFrame[i], 0, finalWorldFrame[0].length);
         }
-        RANDOM = new RandomNumberHelper(history.RANDOM.seed);
-        RANDOM.RANDOM = history.RANDOM.RANDOM;
+        RANDOM = new RandomNumberHelper(history.getHistoryRandom().getSeed());
+        RANDOM.setRANDOM(history.getHistoryRandom().getRandom());
         keyboard = new StringInput(input);
-        userPosition = new Tuple(history.userPosition.first, history.userPosition.second);
-        munberOfFlawer = history.munberOfFlawer;
+        userPosition = new Tuple(history.getUserPosition().getFirst(), history.getUserPosition().getSecond());
+        munberOfFlawer = history.getMunberOfFlawer();
     }
 
     private void generateRoomList() {
         double coverRate = 0.0;
         int totCover = 0;
-        while (COVERRATE - coverRate > exp) {
+        while (COVERRATE - coverRate > EXP) {
             int cover = generateRoom();
             totCover += cover;
             coverRate = (double) totCover / (WIDTH * HEIGHT);
@@ -151,7 +148,7 @@ public class Engine {
 //        ter.renderFrame(finalWorldFrame);
     }
 
-    private void interact(){
+    private void interact() {
         finalWorldFrame[userPosition.getFirst()][userPosition.getSecond()] = Tileset.AVATAR;
         display();
         munberOfFlawer--;
@@ -189,7 +186,8 @@ public class Engine {
         if (px < 0 || px >= WIDTH || py < 0 || py >= HEIGHT) {
             return false;
         }
-        if (finalWorldFrame[px][py].description().equals("nothing") || finalWorldFrame[px][py].description().equals("wall")) {
+        if (finalWorldFrame[px][py].description().equals("nothing")
+                || finalWorldFrame[px][py].description().equals("wall")) {
             return false;
         }
         if (finalWorldFrame[px][py].description().equals("flower")) {
@@ -211,9 +209,9 @@ public class Engine {
 //        System.out.println("You Win!");
     }
 
-    private void savingQuit(){
+    private void savingQuit() {
         History history = new History(finalWorldFrame, munberOfFlawer, RANDOM, userPosition);
-        Utils.writeObject(saving, history);
+        Utils.writeObject(SAVING, history);
     }
 
     private void unsavingQuit() {

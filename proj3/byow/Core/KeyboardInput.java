@@ -2,14 +2,12 @@ package byow.Core;
 
 import edu.princeton.cs.introcs.StdDraw;
 
-import java.awt.*;
-
 public class KeyboardInput implements Input {
     KeyboardInput() {
         StdDraw.setPenColor(StdDraw.WHITE);
 //        Font font = new Font("Monaco", Font.BOLD, 30);
 //        StdDraw.setFont(font);
-        StdDraw.text(40,50,"remained flower: ");
+        StdDraw.text(40, 50, "remained flower: ");
     }
 
     @Override

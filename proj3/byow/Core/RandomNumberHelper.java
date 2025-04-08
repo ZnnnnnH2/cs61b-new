@@ -4,8 +4,8 @@ import java.io.*;
 import java.util.Random;
 
 public class RandomNumberHelper implements Serializable {
-    public Random RANDOM;
-    public long seed;
+    private Random RANDOM;
+    private long seed;
 
     public RandomNumberHelper(long seed) {
         this.seed = seed;
@@ -26,5 +26,13 @@ public class RandomNumberHelper implements Serializable {
 
     public long getSeed() {
         return seed;
+    }
+
+    public Random getRandom() {
+        return RANDOM;
+    }
+
+    public void setRANDOM(Random random) {
+        this.RANDOM = random;
     }
 }

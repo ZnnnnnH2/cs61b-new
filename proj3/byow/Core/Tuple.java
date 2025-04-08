@@ -3,8 +3,8 @@ package byow.Core;
 import java.io.*;
 
 public class Tuple implements Comparable<Tuple>, Serializable {
-    public int first;
-    public int second;
+    private int first;
+    private int second;
 
     public Tuple(int first, int second) {
         this.first = first;
