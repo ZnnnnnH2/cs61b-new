@@ -41,6 +41,9 @@ public class MemoryGame {
      * spec, 'Helpful UI'.
      */
     private boolean playerTurn;
+    private StringBuilder sb;
+    private int sbLength;
+
 
     public MemoryGame(int width, int height, long seed) {
         /* Sets up StdDraw so that it has a width by height grid of 16 by 16 squares as its canvas
@@ -101,9 +104,8 @@ public class MemoryGame {
         //TODO: Display each character in letters, making sure to blank the screen between letters
         int len = letters.length();
         for (int i = 0; i < len; i++) {
-            StdDraw.text((double) width / 2, (double) height / 2, String.valueOf(letters.charAt(i)));
-            StdDraw.show();
-            pauseBetweenLetters();
+            showALLThings(String.valueOf(letters.charAt(i)));
+            StdDraw.pause(500);
         }
     }
 
@@ -113,39 +115,61 @@ public class MemoryGame {
     }
 
     public String solicitNCharsInput(int n) {
-        StringBuilder sb = new StringBuilder();
-        int t = 0;
-        while(t<n){
+        while(sbLength<n){
             if(StdDraw.hasNextKeyTyped()){
-                clearScreen();
-                char c = StdDraw.nextKeyTyped();
-                sb.append(c);
-                t++;
-                StdDraw.text((double) width *0.5 , (double) height * 0.25 , sb.toString());
-                StdDraw.show();
+                getInput(n);
+                if(sbLength>=n){
+                    break;
+                }
             }
         }
         return sb.toString();
     }
-    private void showRound(){
+    private void getInput(int n) {
+        while(StdDraw.hasNextKeyTyped()){
+            sb.append(StdDraw.nextKeyTyped());
+            sbLength++;
+            if(sbLength>=n){
+                break;
+            }
+        }
+    }
+    private void showRound() {
+        showALLThings("Round: " + round);
+        while (StdDraw.hasNextKeyTyped()) {
+            StdDraw.nextKeyTyped();
+        }
+    }
+
+    private void showALLThings(String middleString) {
+        getInput(round);
+        String lowerString = sb.toString();
         clearScreen();
-        StdDraw.text((double) width *0.5 , (double) height * 0.5 , "Round: " + round);
+        if (!middleString.isEmpty()) {
+            StdDraw.text((double) width * 0.5, (double) height * 0.5, middleString);
+        }
+        if (!lowerString.isEmpty()) {
+            StdDraw.text((double) width * 0.5, (double) height * 0.25, lowerString);
+        }
         StdDraw.show();
         StdDraw.pause(1000);
         clearScreen();
-        StdDraw.pause(1000);
     }
+
     public void startGame() {
         //TODO: Set any relevant variables before the game starts
         round = 1;
         gameOver = false;
         //TODO: Establish Engine loop
         while (!gameOver) {
+            sb = new StringBuilder();
+            sbLength = 0;
             showRound();
             String newString = generateRandomString(round);
             drawFrame(newString);
             String userInput = solicitNCharsInput(round);
-            if(!userInput.equals(newString)){
+            showALLThings("");
+            if (!userInput.equals(newString)) {
                 gameOver = true;
             } else {
                 round++;
