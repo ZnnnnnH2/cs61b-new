@@ -4,10 +4,9 @@ import byow.TileEngine.TERenderer;
 import byow.TileEngine.TETile;
 import byow.TileEngine.Tileset;
 
-import java.lang.reflect.Array;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
-import static java.lang.Math.max;
 import static java.lang.Math.min;
 
 public class Engine {
@@ -68,7 +67,7 @@ public class Engine {
         long seed = Long.parseLong(input.substring(1, input.length() - 1));
         RandomNumberHelper RANDOM = new RandomNumberHelper(seed);
         TETile[][] finalWorldFrame = new TETile[WIDTH][HEIGHT];
-        ter.initialize(WIDTH, HEIGHT);
+//        ter.initialize(WIDTH, HEIGHT);
         fillEmptyTiles(finalWorldFrame);
         //generate the room
         double coverRate = 0.0;
@@ -88,8 +87,8 @@ public class Engine {
 
     private void generateHallways(RandomNumberHelper RANDOM, TETile[][] worldFrame) {
         int len = roomList.size();
-        for(int i=0;i<len-1;i++){
-            generateSignalHallways(RANDOM, worldFrame, roomList.get(i), roomList.get(i+1));
+        for (int i = 0; i < len - 1; i++) {
+            generateSignalHallways(RANDOM, worldFrame, roomList.get(i), roomList.get(i + 1));
         }
     }
 
@@ -98,36 +97,35 @@ public class Engine {
         int x2 = b.getFirst();
         int y1 = a.getSecond();
         int y2 = b.getSecond();
-        int width = RANDOM.nextInt(2)+1;
-        if(y1<=y2){
-            for(int i = x1;i<=x2;i++) {
+        int width = RANDOM.nextInt(2) + 1;
+        if (y1 <= y2) {
+            for (int i = x1; i <= x2; i++) {
                 wallBuildHelper(i, y1 - 1, worldFrame);
                 wallBuildHelper(i, y1 + width, worldFrame);
                 for (int j = 0; j < width; j++) {
                     worldFrame[i][y1 + j] = Tileset.FLOOR;
                 }
             }
-            for(int i = y1+width-1;i<=y2;i++){
-                wallBuildHelper(x2+1,i,worldFrame);
-                wallBuildHelper(x2-width,i,worldFrame);
-                for(int j = 0;j<width;j++){
-                    worldFrame[x2-j][i] = Tileset.FLOOR;
+            for (int i = y1 + width - 1; i <= y2; i++) {
+                wallBuildHelper(x2 + 1, i, worldFrame);
+                wallBuildHelper(x2 - width, i, worldFrame);
+                for (int j = 0; j < width; j++) {
+                    worldFrame[x2 - j][i] = Tileset.FLOOR;
                 }
             }
-        }
-        else{
-            for(int i = x1;i<=x2;i++){
-                wallBuildHelper(i,y1-1,worldFrame);
-                wallBuildHelper(i,y1+width,worldFrame);
-                for(int j = 0;j<width;j++){
-                    worldFrame[i][y1+j] = Tileset.FLOOR;
+        } else {
+            for (int i = x1; i <= x2; i++) {
+                wallBuildHelper(i, y1 - 1, worldFrame);
+                wallBuildHelper(i, y1 + width, worldFrame);
+                for (int j = 0; j < width; j++) {
+                    worldFrame[i][y1 + j] = Tileset.FLOOR;
                 }
             }
-            for(int i = y2;i<=y1+width-1;i++){
-                wallBuildHelper(x2+1,i,worldFrame);
-                wallBuildHelper(x2-width,i,worldFrame);
-                for(int j = 0;j<width;j++){
-                    worldFrame[x2-j][i] = Tileset.FLOOR;
+            for (int i = y2; i <= y1 + width - 1; i++) {
+                wallBuildHelper(x2 + 1, i, worldFrame);
+                wallBuildHelper(x2 - width, i, worldFrame);
+                for (int j = 0; j < width; j++) {
+                    worldFrame[x2 - j][i] = Tileset.FLOOR;
                 }
             }
         }
