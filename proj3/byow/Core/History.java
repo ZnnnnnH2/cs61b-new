@@ -11,10 +11,10 @@ public class History implements Serializable {
     private int munberOfFlawer;
 
     History(TETile[][] finalWorldFrame, int munberOfFlawer,
-            RandomNumberHelper RANDOM, Tuple userPosition) {
+            RandomNumberHelper random, Tuple userPosition) {
         this.userPosition = new Tuple(userPosition.getFirst(), userPosition.getSecond());
-        this.historyRandom = new RandomNumberHelper(RANDOM.getSeed());
-        this.historyRandom.setRANDOM(RANDOM.getRandom());
+        this.historyRandom = new RandomNumberHelper(random.getSeed());
+        this.historyRandom.setRANDOM(random.getRandom());
         this.finalWorldFrame = new TETile[finalWorldFrame.length][finalWorldFrame[0].length];
         for (int i = 0; i < finalWorldFrame.length; i++) {
             System.arraycopy(finalWorldFrame[i], 0, this.finalWorldFrame[i],

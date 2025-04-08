@@ -128,7 +128,8 @@ public class Engine {
         RANDOM = new RandomNumberHelper(history.getHistoryRandom().getSeed());
         RANDOM.setRANDOM(history.getHistoryRandom().getRandom());
         keyboard = new StringInput(input);
-        userPosition = new Tuple(history.getUserPosition().getFirst(), history.getUserPosition().getSecond());
+        userPosition = new Tuple(history.getUserPosition().getFirst(),
+                history.getUserPosition().getSecond());
         munberOfFlawer = history.getMunberOfFlawer();
     }
 
