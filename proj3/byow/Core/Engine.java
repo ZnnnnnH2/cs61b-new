@@ -77,9 +77,9 @@ public class Engine {
         // that works for many different input types.
 
         //initialize the ter
-        if (input.charAt(0) == 'N') {
+        if (input.charAt(0) == 'N' || input.charAt(0) == 'n') {
             initialize(input.substring(1));
-        } else if (input.charAt(0) == 'L') {
+        } else if (input.charAt(0) == 'L' || input.charAt(0) == 'l') {
             loadHistory(input.substring(1));
         }
 
