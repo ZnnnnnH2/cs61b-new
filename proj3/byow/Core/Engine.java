@@ -67,7 +67,7 @@ public class Engine {
      */
 
 
-    public TETile[][] interactWithInputString(String input) throws IOException, ClassNotFoundException {
+    public TETile[][] interactWithInputString(String input){
         // TODO: Fill out this method so that it run the engine using the input
         // passed in as an argument, and return a 2D tile representation of the
         // world that would have been drawn if the same inputs had been given
@@ -120,7 +120,7 @@ public class Engine {
         userPosition = new Tuple(roomList.get(0).getFirst(), roomList.get(0).getSecond());
     }
 
-    private void loadHistory(String input) throws IOException, ClassNotFoundException {
+    private void loadHistory(String input){
         History history = Utils.readObject(saving, History.class);
 //        ter.initialize(WIDTH, HEIGHT);
 //        finalWorldFrame = history.finalWorldFrame;
@@ -128,9 +128,10 @@ public class Engine {
         for (int i = 0; i < finalWorldFrame.length; i++) {
             System.arraycopy(history.finalWorldFrame[i], 0, finalWorldFrame[i], 0, finalWorldFrame[0].length);
         }
-        RANDOM = history.RANDOM.deepCopy();
+        RANDOM = new RandomNumberHelper(history.RANDOM.seed);
+        RANDOM.RANDOM = history.RANDOM.RANDOM;
         keyboard = new StringInput(input);
-        userPosition = history.userPosition.deepCopy();
+        userPosition = new Tuple(history.userPosition.first, history.userPosition.second);
         munberOfFlawer = history.munberOfFlawer;
     }
 
@@ -150,7 +151,7 @@ public class Engine {
 //        ter.renderFrame(finalWorldFrame);
     }
 
-    private void interact() throws IOException, ClassNotFoundException {
+    private void interact(){
         finalWorldFrame[userPosition.getFirst()][userPosition.getSecond()] = Tileset.AVATAR;
         display();
         munberOfFlawer--;
@@ -210,7 +211,7 @@ public class Engine {
 //        System.out.println("You Win!");
     }
 
-    private void savingQuit() throws IOException, ClassNotFoundException {
+    private void savingQuit(){
         History history = new History(finalWorldFrame, munberOfFlawer, RANDOM, userPosition);
         Utils.writeObject(saving, history);
     }

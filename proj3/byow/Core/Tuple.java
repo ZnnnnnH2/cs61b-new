@@ -55,16 +55,4 @@ public class Tuple implements Comparable<Tuple>, Serializable {
     public int compareTo(Tuple o) {
         return this.first == o.first ? this.second - o.second : this.first - o.first;
     }
-
-    public Tuple deepCopy() throws IOException, ClassNotFoundException {
-        // 利用序列化实现深拷贝
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ObjectOutputStream oos = new ObjectOutputStream(baos);
-        oos.writeObject(this);
-        oos.close();
-
-        ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
-        ObjectInputStream ois = new ObjectInputStream(bais);
-        return (Tuple) ois.readObject();
-    }
 }

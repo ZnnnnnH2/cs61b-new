@@ -8,7 +8,7 @@ import java.io.IOException;
  * in either keyboard or input string mode.
  */
 public class Main {
-    public static void main(String[] args) throws IOException, ClassNotFoundException {
+    public static void main(String[] args) {
         if (args.length > 2) {
             System.out.println("Can only have two arguments - the flag and input string");
             System.exit(0);
@@ -27,7 +27,7 @@ public class Main {
         }
     }
 
-    public static void main0(String[] args) throws IOException, ClassNotFoundException {
+    public static void main0(String[] args){
         Engine engine = new Engine();
         engine.interactWithInputString("N23499334S");
     }

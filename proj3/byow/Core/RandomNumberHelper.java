@@ -27,16 +27,4 @@ public class RandomNumberHelper implements Serializable {
     public long getSeed() {
         return seed;
     }
-
-    public RandomNumberHelper deepCopy() throws IOException, ClassNotFoundException {
-        // 利用序列化实现深拷贝
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        ObjectOutputStream oos = new ObjectOutputStream(baos);
-        oos.writeObject(this);
-        oos.close();
-
-        ByteArrayInputStream bais = new ByteArrayInputStream(baos.toByteArray());
-        ObjectInputStream ois = new ObjectInputStream(bais);
-        return (RandomNumberHelper) ois.readObject();
-    }
 }
