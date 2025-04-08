@@ -6,7 +6,7 @@ public class StringInput implements Input {
     int length;
 
     StringInput(String input) {
-        this.input = input+":Q";
+        this.input = input;
         index = 0;
         length = input.length();
     }
@@ -16,7 +16,7 @@ public class StringInput implements Input {
         if (index < length) {
             return input.charAt(index++);
         }
-        return ' ';
+        return '^';
     }
 
     @Override

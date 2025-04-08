@@ -1,6 +1,8 @@
 package byow.Core;
 
-public class Tuple implements Comparable<Tuple> {
+import java.io.Serializable;
+
+public class Tuple implements Comparable<Tuple>, Serializable {
     private int first;
     private int second;
 

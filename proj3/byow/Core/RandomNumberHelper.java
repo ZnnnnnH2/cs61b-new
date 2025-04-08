@@ -1,8 +1,9 @@
 package byow.Core;
 
+import java.io.Serializable;
 import java.util.Random;
 
-public class RandomNumberHelper {
+public class RandomNumberHelper implements Serializable {
     private Random RANDOM;
     private long seed;
 

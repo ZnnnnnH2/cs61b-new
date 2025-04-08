@@ -4,25 +4,29 @@ import byow.TileEngine.TERenderer;
 import byow.TileEngine.TETile;
 import byow.TileEngine.Tileset;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+import static byow.Core.Utils.join;
 import static java.lang.Math.min;
 
 public class Engine {
     /* Feel free to change the width and height. */
     public static final int WIDTH = 70;
     public static final int HEIGHT = 40;
+    public static final File CWD = new File(System.getProperty("user.dir"));
     private static final double COVERRATE = 0.4;
     private static final double exp = 1e-6;
+    private static final File saving = join(CWD, "saving.txt");
     TERenderer ter = new TERenderer();
     List<Tuple> roomList = new ArrayList<>();
+    Input keyboard;
     private Tuple userPosition;
     private RandomNumberHelper RANDOM;
     private TETile[][] finalWorldFrame;
     private int munberOfFlawer;
     private String inputString;
-    Input keyboard;
 
     /**
      * Method used for exploring a fresh world. This method should handle all inputs,
@@ -72,16 +76,12 @@ public class Engine {
         // that works for many different input types.
 
         //initialize the ter
-        if(input.charAt(0) == 'N') {
+        if (input.charAt(0) == 'N') {
             initialize(input.substring(1));
+        } else if (input.charAt(0) == 'L') {
+            loadHistory(input.substring(1));
         }
-        else if(input.charAt(0) == 'L') {
-            loadHistory();
-        }
-        //generate the room
-        generateRoomList();
-        //generate the hallway
-        generateHallways();
+
         //interaction
         display();
         interact();
@@ -89,32 +89,46 @@ public class Engine {
 
         return finalWorldFrame;
     }
-    private long getSeed(String str){
+
+    private long getSeed(String str) {
         long seed = 0;
         int len = str.length();
         int i = 0;
-        for(; i < len; i++){
-            if('0' <= str.charAt(i) && str.charAt(i) <= '9'){
+        for (; i < len; i++) {
+            if ('0' <= str.charAt(i) && str.charAt(i) <= '9') {
                 seed = seed * 10 + (str.charAt(i) - '0');
-            }
-            else{
+            } else {
                 break;
             }
         }
         inputString = str.substring(i);
         return seed;
     }
+
     private void initialize(String input) {
         long seed = getSeed(input);
-        ter.initialize(WIDTH, HEIGHT);
+//        ter.initialize(WIDTH, HEIGHT);
         RANDOM = new RandomNumberHelper(seed);
         finalWorldFrame = new TETile[WIDTH][HEIGHT];
         fillEmptyTiles(finalWorldFrame);
         keyboard = new StringInput(inputString);
+        //generate the room
+        generateRoomList();
+        //generate the hallway
+        generateHallways();
+        userPosition = new Tuple(roomList.get(0).getFirst(), roomList.get(0).getSecond());
     }
-    private void loadHistory() {
 
+    private void loadHistory(String input) {
+        History history = Utils.readObject(saving, History.class);
+//        ter.initialize(WIDTH, HEIGHT);
+        finalWorldFrame = history.finalWorldFrame;
+        RANDOM = history.RANDOM;
+        keyboard = new StringInput(input);
+        userPosition = history.userPosition;
+        munberOfFlawer = history.munberOfFlawer;
     }
+
     private void generateRoomList() {
         double coverRate = 0.0;
         int totCover = 0;
@@ -126,11 +140,12 @@ public class Engine {
         roomList.sort(Tuple::compareTo);
         munberOfFlawer = roomList.size();
     }
-    private void display(){
-        ter.renderFrame(finalWorldFrame);
+
+    private void display() {
+//        ter.renderFrame(finalWorldFrame);
     }
+
     private void interact() {
-        userPosition = new Tuple(roomList.get(0).getFirst(), roomList.get(0).getSecond());
         finalWorldFrame[userPosition.getFirst()][userPosition.getSecond()] = Tileset.AVATAR;
         display();
         munberOfFlawer--;
@@ -138,39 +153,43 @@ public class Engine {
             char c = keyboard.getNextKey();
             boolean quitFlag = false;
             finalWorldFrame[userPosition.getFirst()][userPosition.getSecond()] = Tileset.FLOOR;
-            if (c == 'W' || c == 'w') {
+            if (c == '^') {
+                unsavingQuit();
+                quitFlag = true;
+            } else if (c == 'W' || c == 'w') {
                 quitFlag = move(0, 1);
             } else if (c == 'S' || c == 's') {
                 quitFlag = move(0, -1);
             } else if (c == 'A' || c == 'a') {
-                quitFlag = move(-1,0);
+                quitFlag = move(-1, 0);
             } else if (c == 'D' || c == 'd') {
-                quitFlag = move(1,0);
+                quitFlag = move(1, 0);
             } else if (c == ':') {
                 char q = keyboard.getNextKey();
                 if (q == 'Q' || q == 'q') {
-                    userQuit();
+                    savingQuit();
                     quitFlag = true;
                 }
             }
-            if(quitFlag) {
+            if (quitFlag) {
                 break;
             }
         }
     }
+
     private boolean move(int x, int y) {
         int px = userPosition.getFirst() + x;
         int py = userPosition.getSecond() + y;
         if (px < 0 || px >= WIDTH || py < 0 || py >= HEIGHT) {
             return false;
         }
-        if (finalWorldFrame[px][py] == Tileset.NOTHING || finalWorldFrame[px][py] == Tileset.WALL) {
+        if (finalWorldFrame[px][py].description().equals("nothing") || finalWorldFrame[px][py].description().equals("wall")) {
             return false;
         }
-        if (finalWorldFrame[px][py] == Tileset.FLOWER) {
+        if (finalWorldFrame[px][py].description().equals("flower")) {
             munberOfFlawer--;
             if (munberOfFlawer == 0) {
-                System.out.println("You win!");
+//                System.out.println("You win!");
                 winnerQuit();
                 return true;
             }
@@ -183,11 +202,16 @@ public class Engine {
     }
 
     private void winnerQuit() {
-
+//        System.out.println("You Win!");
     }
 
-    private void userQuit(){
+    private void savingQuit() {
+        History history = new History(finalWorldFrame, munberOfFlawer, RANDOM, userPosition);
+        Utils.writeObject(saving, history);
+    }
 
+    private void unsavingQuit() {
+//        System.out.println("Not saving");
     }
 
     private void generateHallways() {
