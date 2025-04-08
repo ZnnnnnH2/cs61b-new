@@ -5,7 +5,7 @@ package byow.Core;
  *  in either keyboard or input string mode.
  */
 public class Main {
-    public static void main0(String[] args) {
+    public static void main(String[] args) {
         if (args.length > 2) {
             System.out.println("Can only have two arguments - the flag and input string");
             System.exit(0);
@@ -22,8 +22,8 @@ public class Main {
         }
     }
 
-    public static void main(String[] args) {
+    public static void main0(String[] args) {
         Engine engine = new Engine();
-        engine.interactWithInputString("N234542334S");
+        engine.interactWithInputString("N23499334S");
     }
 }

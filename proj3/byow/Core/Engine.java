@@ -4,17 +4,21 @@ import byow.TileEngine.TERenderer;
 import byow.TileEngine.TETile;
 import byow.TileEngine.Tileset;
 
-import java.util.Random;
+import java.lang.reflect.Array;
+import java.util.*;
 
+import static java.lang.Math.max;
 import static java.lang.Math.min;
 
 public class Engine {
     /* Feel free to change the width and height. */
     public static final int WIDTH = 70;
     public static final int HEIGHT = 40;
+    private static final double COVERRATE = 0.4;
+    private static final double exp = 1e-6;
     TERenderer ter = new TERenderer();
-    static final double COVERRATE = 0.6;
-    static final double exp = 1e-6;
+    List<Tuple> roomList = new ArrayList<>();
+
     /**
      * Method used for exploring a fresh world. This method should handle all inputs,
      * including inputs from the main menu.
@@ -61,7 +65,7 @@ public class Engine {
         // that works for many different input types.
 
         //initialize the ter
-        int seed = Integer.parseInt(input.substring(1, input.length() - 1));
+        long seed = Long.parseLong(input.substring(1, input.length() - 1));
         RandomNumberHelper RANDOM = new RandomNumberHelper(seed);
         TETile[][] finalWorldFrame = new TETile[WIDTH][HEIGHT];
         ter.initialize(WIDTH, HEIGHT);
@@ -69,17 +73,67 @@ public class Engine {
         //generate the room
         double coverRate = 0.0;
         int totCover = 0;
-        while(COVERRATE - coverRate >exp){
-            int cover = engerateRoom(RANDOM, finalWorldFrame);
+        while (COVERRATE - coverRate > exp) {
+            int cover = generateRoom(RANDOM, finalWorldFrame);
             totCover += cover;
             coverRate = (double) totCover / (WIDTH * HEIGHT);
         }
-
+        //generate the hallway
+        roomList.sort(Tuple::compareTo);
+        generateHallways(RANDOM, finalWorldFrame);
         //final operation
-        ter.renderFrame(finalWorldFrame);
+//        ter.renderFrame(finalWorldFrame);
         return finalWorldFrame;
     }
-    private void wallBuildHelper(int x,int y, TETile[][] finalWorldFrame) {
+
+    private void generateHallways(RandomNumberHelper RANDOM, TETile[][] worldFrame) {
+        int len = roomList.size();
+        for(int i=0;i<len-1;i++){
+            generateSignalHallways(RANDOM, worldFrame, roomList.get(i), roomList.get(i+1));
+        }
+    }
+
+    private void generateSignalHallways(RandomNumberHelper RANDOM, TETile[][] worldFrame, Tuple a, Tuple b) {
+        int x1 = a.getFirst();
+        int x2 = b.getFirst();
+        int y1 = a.getSecond();
+        int y2 = b.getSecond();
+        int width = RANDOM.nextInt(2)+1;
+        if(y1<=y2){
+            for(int i = x1;i<=x2;i++) {
+                wallBuildHelper(i, y1 - 1, worldFrame);
+                wallBuildHelper(i, y1 + width, worldFrame);
+                for (int j = 0; j < width; j++) {
+                    worldFrame[i][y1 + j] = Tileset.FLOOR;
+                }
+            }
+            for(int i = y1+width-1;i<=y2;i++){
+                wallBuildHelper(x2+1,i,worldFrame);
+                wallBuildHelper(x2-width,i,worldFrame);
+                for(int j = 0;j<width;j++){
+                    worldFrame[x2-j][i] = Tileset.FLOOR;
+                }
+            }
+        }
+        else{
+            for(int i = x1;i<=x2;i++){
+                wallBuildHelper(i,y1-1,worldFrame);
+                wallBuildHelper(i,y1+width,worldFrame);
+                for(int j = 0;j<width;j++){
+                    worldFrame[i][y1+j] = Tileset.FLOOR;
+                }
+            }
+            for(int i = y2;i<=y1+width-1;i++){
+                wallBuildHelper(x2+1,i,worldFrame);
+                wallBuildHelper(x2-width,i,worldFrame);
+                for(int j = 0;j<width;j++){
+                    worldFrame[x2-j][i] = Tileset.FLOOR;
+                }
+            }
+        }
+    }
+
+    private void wallBuildHelper(int x, int y, TETile[][] finalWorldFrame) {
         if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT) {
             return;
         }
@@ -87,7 +141,8 @@ public class Engine {
             finalWorldFrame[x][y] = Tileset.WALL;
         }
     }
-    private int engerateRoom(RandomNumberHelper RANDOM, TETile[][] finalWorldFrame) {
+
+    private int generateRoom(RandomNumberHelper RANDOM, TETile[][] finalWorldFrame) {
         int x1 = RANDOM.nextInt(WIDTH - 2);
         int y1 = RANDOM.nextInt(HEIGHT - 2);
         int width = RANDOM.nextInt(10) + 2;
@@ -107,6 +162,9 @@ public class Engine {
                 finalWorldFrame[i][j] = Tileset.FLOOR;
             }
         }
+        int midX = (x1 + x2) / 2;
+        int midY = (y1 + y2) / 2;
+        roomList.add(new Tuple(midX, midY));
         return (width * height);
     }
 }

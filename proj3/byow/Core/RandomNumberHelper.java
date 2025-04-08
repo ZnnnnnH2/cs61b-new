@@ -3,10 +3,10 @@ package byow.Core;
 import java.util.Random;
 
 public class RandomNumberHelper {
-    Random RANDOM;
-    int seed;
+    private Random RANDOM;
+    private long seed;
 
-    public RandomNumberHelper(int seed) {
+    public RandomNumberHelper(long seed) {
         this.seed = seed;
         RANDOM = new Random(seed);
     }
@@ -21,5 +21,9 @@ public class RandomNumberHelper {
             ans = RANDOM.nextInt(max - ans);
         }
         return ans;
+    }
+
+    public long getSeed() {
+        return seed;
     }
 }
